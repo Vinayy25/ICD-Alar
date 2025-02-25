@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/chapter_detail_screen.dart';
 import 'state/chapters_state.dart';
 
 void main() {
@@ -28,65 +30,65 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class Home extends StatelessWidget {
+class Home extends StatefulWidget {
   const Home({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final chapters = Provider.of<Chapters>(context);
+  State<Home> createState() => _HomeState();
+}
 
+class _HomeState extends State<Home> {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ICD-10'),
-      ),
-      body: ListView.builder(
-        itemCount: chapters.chapterUrls.length,
-        itemBuilder: (context, index) {
-          return ExpansionTile(
-            title: Text('Chapter ${index + 1}'),
-            onExpansionChanged: (expanded) {
-              if (expanded) {
-                chapters.loadChapterData(chapters.chapterUrls[index]);
-                
+        title: const Text('ICD-11 Chapters'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_forever),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cleared stored data')),
+                );
               }
             },
-            children: [
-              if (chapters.isLoading &&
-                  chapters.selectedChapterUrl == chapters.chapterUrls[index])
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (chapters.error != null &&
-                  chapters.selectedChapterUrl == chapters.chapterUrls[index])
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'Error: ${chapters.error}',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                )
-              else if (chapters.selectedChapterData != null &&
-                  chapters.selectedChapterUrl == chapters.chapterUrls[index])
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        chapters.selectedChapterData!['title']?['@value'] ??
-                            'No title',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      // Add more chapter data display here as needed
-                    ],
-                  ),
+          ),
+        ],
+      ),
+      body: Consumer<Chapters>(
+        builder: (context, chapters, _) {
+          return ListView.builder(
+            itemCount: chapters.chapterUrls.length,
+            itemBuilder: (context, index) {
+              final url = chapters.chapterUrls[index];
+              final data = chapters.getDataForUrl(url);
+
+              return ListTile(
+                title: Text(
+                  data != null
+                      ? data['title']['@value']
+                      : 'Chapter ${index + 1}',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-            ],
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  chapters.loadChapterData(url);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ChapterDetailScreen(
+                        url: url,
+                        chapterTitle:
+                            data?['title']?['@value'] ?? 'Chapter ${index + 1}',
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
           );
         },
       ),

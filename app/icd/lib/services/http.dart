@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class HttpService {
   // Base URL for your FastAPI server
-  static const String baseUrl = 'https://f5ff-2401-4900-91f7-bae2-7a3-277d-105e-6a4e.ngrok-free.app';
+  static const String baseUrl = 'https://53df-2401-4900-6301-4d18-69e2-d70b-615b-d913.ngrok-free.app';
 
   // Singleton pattern
   static final HttpService _instance = HttpService._internal();

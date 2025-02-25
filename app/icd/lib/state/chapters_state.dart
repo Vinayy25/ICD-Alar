@@ -72,58 +72,169 @@ class Chapters extends ChangeNotifier {
     "Chapter 28",
   ];
 
+  Map<String, List<String>> hierarchyChain =
+      {}; // Stores parent-child relationships
+  Map<String, Map<String, dynamic>> hierarchyData =
+      {}; // Stores data for each URL
+
   Future<void> fetchChapterData(String chapterUrl) async {
+    // Check if data is already in hierarchyData
+    if (hierarchyData.containsKey(chapterUrl)) {
+      setState(() {
+        selectedChapterData = hierarchyData[chapterUrl];
+        isLoading = false;
+      });
+      return;
+    }
+
     try {
       setState(() {
         isLoading = true;
         error = null;
-        selectedChapterUrl = chapterUrl;
       });
 
-      // Use the HttpService to fetch data for the specific chapter URL
-      final chapterData = await _httpService.getIcdData(chapterUrl);
+      // Check SharedPreferences first
+      final prefs = await SharedPreferences.getInstance();
+      final cachedData = prefs.getString(chapterUrl);
 
-      setState(() {
-        selectedChapterData = chapterData;
-        isLoading = false;
-      });
+      if (cachedData != null) {
+        final decodedData = json.decode(cachedData);
+        hierarchyData[chapterUrl] = decodedData;
+        setState(() {
+          selectedChapterData = decodedData;
+          isLoading = false;
+        });
+      } else {
+        // Fetch from network if not cached
+        final chapterData = await _httpService.getIcdData(chapterUrl);
+        await saveChapterData(chapterUrl, chapterData);
+        hierarchyData[chapterUrl] = chapterData;
+        setState(() {
+          selectedChapterData = chapterData;
+          isLoading = false;
+        });
+      }
 
-      // Save the fetched data locally
-      await saveChapterData(chapterUrl, chapterData);
+      // Recursively fetch children if needed
+      if (selectedChapterData!['child'] != null) {
+        final children = List<String>.from(selectedChapterData!['child']);
+        await Future.wait(children.map((url) => preloadData(url)));
+      }
     } catch (e) {
       setState(() {
         error = e.toString();
         isLoading = false;
       });
     }
+    notifyListeners();
+  }
+
+  Future<void> preloadData(String url) async {
+    if (hierarchyData.containsKey(url)) return;
+
+    try {
+      final data = await _httpService.getIcdData(url);
+      hierarchyData[url] = data;
+      await saveChapterData(url, data);
+
+      if (data['child'] != null) {
+        await Future.wait(List<String>.from(data['child'])
+            .map((childUrl) => preloadData(childUrl)));
+      }
+    } catch (e) {
+      print("Preload error: $e");
+    }
+  }
+
+  Future<void> loadChapterData(String url) async {
+    if (hierarchyData.containsKey(url)) {
+      setState(() {
+        selectedChapterData = hierarchyData[url];
+      });
+      notifyListeners();
+      return;
+    }
+    await fetchChapterData(url);
   }
 
   Future<void> saveChapterData(
       String chapterUrl, Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(chapterUrl, json.encode(data));
-  }
-
-  Future<void> loadChapterData(String chapterUrl) async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString(chapterUrl);
-    if (data != null) {
-      setState(() {
-        selectedChapterData = json.decode(data);
-        print('Loaded data from cache' +
-            selectedChapterData.toString() +
-            "title " +
-            selectedChapterData!['title']?['@value']);
-
-        selectedChapterUrl = chapterUrl;
-      });
-    } else {
-      fetchChapterData(chapterUrl);
-    }
+    notifyListeners();
   }
 
   void setState(Function() fn) {
     fn();
     notifyListeners();
+  }
+
+  // Add this method to build and get the chain for a specific URL
+  Future<List<String>> getHierarchyChain(String url) async {
+    List<String> chain = [];
+    String currentUrl = url;
+
+    while (currentUrl.isNotEmpty) {
+      final data = await loadStoredData(currentUrl);
+      if (data == null) break;
+
+      chain.insert(0, currentUrl);
+
+      // Get parent URL if it exists
+      final parents = data['parent'] as List<String>?;
+      if (parents == null || parents.isEmpty) break;
+      currentUrl = parents.first;
+    }
+
+    return chain;
+  }
+
+  // Helper method to load stored data
+  Future<Map<String, dynamic>?> loadStoredData(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(url);
+
+    return data != null ? json.decode(data) : null;
+  }
+
+  // Helper method to check if children are loaded
+  Future<bool> areChildrenLoaded(String url) async {
+    final data = hierarchyData[url];
+    if (data == null) return false;
+
+    final children = data['child'] as List<String>?;
+    if (children == null) return true;
+
+    for (final childUrl in children) {
+      if (!hierarchyData.containsKey(childUrl)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Get children for a specific URL
+  List<String> getChildrenUrls(String url) {
+    return hierarchyChain[url] ?? [];
+  }
+
+  // Get data for a specific URL
+  Map<String, dynamic>? getDataForUrl(String url) {
+    return hierarchyData[url];
+  }
+
+  // Helper method to get title for a URL
+  String getTitleForUrl(String url) {
+    final data = hierarchyData[url];
+    if (data == null) return '';
+    return data['title']?['@value'] ?? '';
+  }
+
+  // Helper method to get classKind for a URL
+  String getClassKindForUrl(String url) {
+    final data = hierarchyData[url];
+    if (data == null) return '';
+    return data['classKind'] ?? '';
   }
 }
