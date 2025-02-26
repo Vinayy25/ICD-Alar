@@ -78,55 +78,89 @@ class Chapters extends ChangeNotifier {
       {}; // Stores data for each URL
 
   Future<void> fetchChapterData(String chapterUrl) async {
-    // Check if data is already in hierarchyData
-    if (hierarchyData.containsKey(chapterUrl)) {
-      setState(() {
-        selectedChapterData = hierarchyData[chapterUrl];
-        isLoading = false;
-      });
-      return;
-    }
-
     try {
       setState(() {
         isLoading = true;
         error = null;
+        selectedChapterUrl = chapterUrl;
       });
 
-      // Check SharedPreferences first
-      final prefs = await SharedPreferences.getInstance();
-      final cachedData = prefs.getString(chapterUrl);
-
-      if (cachedData != null) {
-        final decodedData = json.decode(cachedData);
-        hierarchyData[chapterUrl] = decodedData;
-        setState(() {
-          selectedChapterData = decodedData;
-          isLoading = false;
-        });
+      // Level 1: Load current chapter data
+      Map<String, dynamic> chapterData;
+      if (!hierarchyData.containsKey(chapterUrl)) {
+        chapterData = await _loadAndCacheData(chapterUrl);
       } else {
-        // Fetch from network if not cached
-        final chapterData = await _httpService.getIcdData(chapterUrl);
-        await saveChapterData(chapterUrl, chapterData);
-        hierarchyData[chapterUrl] = chapterData;
-        setState(() {
-          selectedChapterData = chapterData;
-          isLoading = false;
-        });
+        chapterData = hierarchyData[chapterUrl]!;
       }
 
-      // Recursively fetch children if needed
-      if (selectedChapterData!['child'] != null) {
-        final children = List<String>.from(selectedChapterData!['child']);
-        await Future.wait(children.map((url) => preloadData(url)));
+      setState(() {
+        selectedChapterData = chapterData;
+      });
+
+      // Level 2: Load immediate children
+      if (chapterData['child'] != null && chapterData['child'] is List) {
+        final level1ChildUrls = List<String>.from(chapterData['child']);
+        hierarchyChain[chapterUrl] = level1ChildUrls;
+
+        // Load all level 1 children
+        await Future.wait(level1ChildUrls.map((childUrl) async {
+          if (!hierarchyData.containsKey(childUrl)) {
+            final childData = await _loadAndCacheData(childUrl);
+
+            // Level 3: Load grandchildren for each child
+            if (childData['child'] != null && childData['child'] is List) {
+              final level2ChildUrls = List<String>.from(childData['child']);
+              hierarchyChain[childUrl] = level2ChildUrls;
+
+              // Load all level 2 children in parallel
+              await Future.wait(level2ChildUrls.map((grandChildUrl) async {
+                if (!hierarchyData.containsKey(grandChildUrl)) {
+                  await _loadAndCacheData(grandChildUrl);
+                }
+              }));
+            }
+          }
+        }));
       }
+
+      setState(() {
+        isLoading = false;
+      });
     } catch (e) {
+      print("Error in fetchChapterData: $e");
       setState(() {
         error = e.toString();
         isLoading = false;
       });
     }
-    notifyListeners();
+  }
+
+  // Helper method to load and cache data
+  Future<Map<String, dynamic>> _loadAndCacheData(String url) async {
+    try {
+      // Check SharedPreferences first
+      final prefs = await SharedPreferences.getInstance();
+      final cachedData = prefs.getString(url);
+
+      if (cachedData != null) {
+        final decodedData = json.decode(cachedData);
+        setState(() {
+          hierarchyData[url] = decodedData;
+        });
+        return decodedData;
+      }
+
+      // Fetch from network if not in cache
+      final data = await _httpService.getIcdData(url);
+      await saveChapterData(url, data);
+      setState(() {
+        hierarchyData[url] = data;
+      });
+      return data;
+    } catch (e) {
+      print("Error loading data for $url: $e");
+      throw e;
+    }
   }
 
   Future<void> preloadData(String url) async {
@@ -147,13 +181,13 @@ class Chapters extends ChangeNotifier {
   }
 
   Future<void> loadChapterData(String url) async {
+    selectedChapterUrl = url;
     if (hierarchyData.containsKey(url)) {
       setState(() {
         selectedChapterData = hierarchyData[url];
       });
-      notifyListeners();
-      return;
     }
+    // Always fetch to ensure children are loaded
     await fetchChapterData(url);
   }
 
@@ -236,5 +270,60 @@ class Chapters extends ChangeNotifier {
     final data = hierarchyData[url];
     if (data == null) return '';
     return data['classKind'] ?? '';
+  }
+
+  // Add this new method to load all children for a screen
+  Future<void> loadScreenData(String url) async {
+    try {
+      setState(() {
+        isLoading = true;
+        error = null;
+        selectedChapterUrl = url;
+      });
+
+      // First load the current screen's data
+      if (!hierarchyData.containsKey(url)) {
+        await _loadAndCacheData(url);
+      }
+
+      final currentData = hierarchyData[url]!;
+
+      // Then load all its immediate children
+      if (currentData['child'] != null && currentData['child'] is List) {
+        final childUrls = List<String>.from(currentData['child']);
+        hierarchyChain[url] = childUrls;
+
+        // Load all children in parallel
+        await Future.wait(childUrls.map((childUrl) async {
+          if (!hierarchyData.containsKey(childUrl)) {
+            final childData = await _loadAndCacheData(childUrl);
+
+            // Also load the children of each child
+            if (childData['child'] != null && childData['child'] is List) {
+              final grandChildUrls = List<String>.from(childData['child']);
+              hierarchyChain[childUrl] = grandChildUrls;
+
+              // Load all grandchildren in parallel
+              await Future.wait(grandChildUrls.map((grandChildUrl) async {
+                if (!hierarchyData.containsKey(grandChildUrl)) {
+                  await _loadAndCacheData(grandChildUrl);
+                }
+              }));
+            }
+          }
+        }));
+      }
+
+      setState(() {
+        selectedChapterData = currentData;
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error loading screen data: $e");
+      setState(() {
+        error = e.toString();
+        isLoading = false;
+      });
+    }
   }
 }

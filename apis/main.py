@@ -2,7 +2,9 @@ import os
 import json
 import requests
 import redis
-from fastapi import FastAPI, HTTPException
+import asyncio
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from typing import List, Dict, Any
 from dotenv import load_dotenv
 
@@ -16,6 +18,37 @@ ICD_BASE_URL = "https://id.who.int/icd"
 
 # Initialize the Redis client
 redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+
+# Add these global variables
+CURRENT_TOKEN = None
+LAST_TOKEN_REFRESH = None
+TOKEN_REFRESH_INTERVAL = timedelta(minutes=15)
+
+async def refresh_token_periodically():
+    """Background task to refresh the token every 15 minutes"""
+    global CURRENT_TOKEN, LAST_TOKEN_REFRESH
+    while True:
+        try:
+            CURRENT_TOKEN = fetch_token()
+            LAST_TOKEN_REFRESH = datetime.now()
+            print(f"Token refreshed at: {LAST_TOKEN_REFRESH}")
+            await asyncio.sleep(TOKEN_REFRESH_INTERVAL.total_seconds())
+        except Exception as e:
+            print(f"Error refreshing token: {e}")
+            await asyncio.sleep(60)  # Wait a minute before retrying on error
+
+async def get_valid_token() -> str:
+    """Get a valid token, refreshing if necessary"""
+    global CURRENT_TOKEN, LAST_TOKEN_REFRESH
+    
+    if CURRENT_TOKEN is None or LAST_TOKEN_REFRESH is None:
+        CURRENT_TOKEN = fetch_token()
+        LAST_TOKEN_REFRESH = datetime.now()
+    elif datetime.now() - LAST_TOKEN_REFRESH >= TOKEN_REFRESH_INTERVAL:
+        CURRENT_TOKEN = fetch_token()
+        LAST_TOKEN_REFRESH = datetime.now()
+    
+    return CURRENT_TOKEN
 
 def fetch_token() -> str:
     scope = 'icdapi_access'
@@ -33,16 +66,14 @@ def fetch_token() -> str:
     token = r['access_token']
     return token
 
-CURRENT_TOKEN = fetch_token()
-
-def fetch_icd_data(endpoint: str) -> Dict[str, Any]:
+async def fetch_icd_data(endpoint: str) -> Dict[str, Any]:
     """
     Generic function to fetch data from the ICD API using the given endpoint.
     This function is not cached.
     """
-    BEARER_TOKEN = CURRENT_TOKEN
+    token = await get_valid_token()
     headers = {
-        "Authorization": f"Bearer {BEARER_TOKEN}",
+        "Authorization": f"Bearer {token}",
         "Accept": "application/json",
         "Accept-Language": "en",
         "API-Version": "v2",
@@ -68,7 +99,7 @@ async def get_chapters(release_id: str = "2019-04") -> Dict[str, Any]:
     if cached:
         return json.loads(cached)
     
-    data = fetch_icd_data(endpoint)
+    data = await fetch_icd_data(endpoint)
     # Cache the result (e.g., 10 minutes)
     redis_client.set(cache_key, json.dumps(data), ex=600)
     
@@ -80,7 +111,7 @@ async def get_chapters(release_id: str = "2019-04") -> Dict[str, Any]:
     }
 
 @app.get("/icd/data")
-async def get_icd_data(url: str) -> Dict[str, Any]:
+async def get_icd_data(url: str, background_tasks: BackgroundTasks) -> Dict[str, Any]:
     """
     Endpoint that accepts any ICD API URL and returns its data using Redis cache.
     Example: /icd/data?url=https://id.who.int/icd/release/11/2019-04/mms
@@ -90,7 +121,7 @@ async def get_icd_data(url: str) -> Dict[str, Any]:
     if cached_data:
         return json.loads(cached_data)
     
-    token = CURRENT_TOKEN
+    token = await get_valid_token()
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
@@ -107,6 +138,11 @@ async def get_icd_data(url: str) -> Dict[str, Any]:
         return data
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Error fetching ICD data: {e}")
+
+# Start the token refresh task when the app starts
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(refresh_token_periodically())
 
 if __name__ == "__main__":
     import uvicorn
