@@ -37,6 +37,11 @@ dependencies:
   provider: ^6.1.2
   http: ^1.3.0
   shared_preferences: ^2.5.2
+  skeletonizer: ^1.4.3
+  flutter_markdown: ^0.7.6+2
+  animations: ^2.0.7
+  lottie: ^2.6.0
+  flutter_animate: ^4.2.0
 
 dev_dependencies:
   flutter_test:

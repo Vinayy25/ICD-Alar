@@ -10,72 +10,93 @@ class Chapters extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
-  List<String> chapterUrls = [
-    "http://id.who.int/icd/release/11/2019-04/mms/21500692",
-    "http://id.who.int/icd/release/11/2019-04/mms/1630407678",
-    "http://id.who.int/icd/release/11/2019-04/mms/1766440644",
-    "http://id.who.int/icd/release/11/2019-04/mms/1954798891",
-    "http://id.who.int/icd/release/11/2019-04/mms/1435254666",
-    "http://id.who.int/icd/release/11/2019-04/mms/334423054",
-    "http://id.who.int/icd/release/11/2019-04/mms/274880002",
-    "http://id.who.int/icd/release/11/2019-04/mms/1296093776",
-    "http://id.who.int/icd/release/11/2019-04/mms/868865918",
-    "http://id.who.int/icd/release/11/2019-04/mms/1218729044",
-    "http://id.who.int/icd/release/11/2019-04/mms/426429380",
-    "http://id.who.int/icd/release/11/2019-04/mms/197934298",
-    "http://id.who.int/icd/release/11/2019-04/mms/1256772020",
-    "http://id.who.int/icd/release/11/2019-04/mms/1639304259",
-    "http://id.who.int/icd/release/11/2019-04/mms/1473673350",
-    "http://id.who.int/icd/release/11/2019-04/mms/30659757",
-    "http://id.who.int/icd/release/11/2019-04/mms/577470983",
-    "http://id.who.int/icd/release/11/2019-04/mms/714000734",
-    "http://id.who.int/icd/release/11/2019-04/mms/1306203631",
-    "http://id.who.int/icd/release/11/2019-04/mms/223744320",
-    "http://id.who.int/icd/release/11/2019-04/mms/1843895818",
-    "http://id.who.int/icd/release/11/2019-04/mms/435227771",
-    "http://id.who.int/icd/release/11/2019-04/mms/850137482",
-    "http://id.who.int/icd/release/11/2019-04/mms/1249056269",
-    "http://id.who.int/icd/release/11/2019-04/mms/1596590595",
-    "http://id.who.int/icd/release/11/2019-04/mms/718687701",
-    "http://id.who.int/icd/release/11/2019-04/mms/231358748",
-    "http://id.who.int/icd/release/11/2019-04/mms/979408586",
-  ];
+  // Replace hardcoded lists with dynamic ones
+  List<String> chapterUrls = [];
+  bool isInitialized = false;
 
-  List<String> chapterNames = [
-    "Chapter 1",
-    "Chapter 2",
-    "Chapter 3",
-    "Chapter 4",
-    "Chapter 5",
-    "Chapter 6",
-    "Chapter 7",
-    "Chapter 8",
-    "Chapter 9",
-    "Chapter 10",
-    "Chapter 11",
-    "Chapter 12",
-    "Chapter 13",
-    "Chapter 14",
-    "Chapter 15",
-    "Chapter 16",
-    "Chapter 17",
-    "Chapter 18",
-    "Chapter 19",
-    "Chapter 20",
-    "Chapter 21",
-    "Chapter 22",
-    "Chapter 23",
-    "Chapter 24",
-    "Chapter 25",
-    "Chapter 26",
-    "Chapter 27",
-    "Chapter 28",
-  ];
+  // Map to store parent-child relationships
+  Map<String, List<String>> hierarchyChain = {};
 
-  Map<String, List<String>> hierarchyChain =
-      {}; // Stores parent-child relationships
-  Map<String, Map<String, dynamic>> hierarchyData =
-      {}; // Stores data for each URL
+  // Map to store data for each URL
+  Map<String, Map<String, dynamic>> hierarchyData = {};
+
+  // Constructor to initialize data
+  Chapters() {
+    initializeChapters();
+  }
+
+  // Initialize chapters from API
+  Future<void> initializeChapters() async {
+    if (isInitialized) return;
+
+    try {
+      setState(() {
+        isLoading = true;
+        error = null;
+      });
+
+      // First check if we have cached root data
+      final prefs = await SharedPreferences.getInstance();
+      final rootUrl = "https://id.who.int/icd/release/11/2025-01/mms";
+      final cachedRoot = prefs.getString(rootUrl);
+
+      Map<String, dynamic> rootData;
+
+      if (cachedRoot != null) {
+        rootData = json.decode(cachedRoot);
+      } else {
+        // Fetch root data from API
+        rootData = await _httpService.getIcdData(rootUrl);
+        await prefs.setString(rootUrl, json.encode(rootData));
+      }
+
+      // Check if root has children
+      if (rootData['child'] != null && rootData['child'] is List) {
+        // Set chapter URLs from root's children
+        chapterUrls = List<String>.from(rootData['child']);
+
+        // Store hierarchy relationship
+        hierarchyChain[rootUrl] = chapterUrls;
+
+        // Store root data
+        hierarchyData[rootUrl] = rootData;
+
+        // Preload each chapter's basic data for names
+        await Future.wait(chapterUrls.map((chapterUrl) async {
+          try {
+            if (!hierarchyData.containsKey(chapterUrl)) {
+              await _loadAndCacheData(chapterUrl);
+            }
+          } catch (e) {
+            print("Error preloading chapter $chapterUrl: $e");
+          }
+        }));
+      }
+
+      setState(() {
+        isLoading = false;
+        isInitialized = true;
+      });
+    } catch (e) {
+      print("Error initializing chapters: $e");
+      setState(() {
+        error = e.toString();
+        isLoading = false;
+      });
+    }
+  }
+
+  // Get chapter name from data or provide default
+  String getChapterName(int index) {
+    if (index >= 0 && index < chapterUrls.length) {
+      final url = chapterUrls[index];
+      final data = hierarchyData[url];
+      if (data != null && data['title'] != null) {
+        return data['title']['@value'] ?? 'Chapter ${index + 1}';
+      }
+    }
+    return 'Chapter ${index + 1}';
+  }
 
   Future<void> fetchChapterData(String chapterUrl) async {
     try {
