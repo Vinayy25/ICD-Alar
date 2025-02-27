@@ -139,6 +139,73 @@ async def get_icd_data(url: str, background_tasks: BackgroundTasks) -> Dict[str,
     except requests.exceptions.RequestException as e:
         raise HTTPException(status_code=500, detail=f"Error fetching ICD data: {e}")
 
+@app.get("/search")
+async def search_icd(
+    q: str,
+    release_id: str = "2025-01",
+    subtreeFilterUsesFoundationDescendants: bool = False,
+    includeKeywordResult: bool = True,
+    useFlexisearch: bool = False,
+    flatResults: bool = True,
+    highlightingEnabled: bool = True,
+    medicalCodingMode: bool = True
+) -> Dict[str, Any]:
+    """
+    Search the ICD-11 database with a query string.
+    This endpoint replicates the ICD API search functionality.
+    
+    Args:
+        q: Query string to search for
+        release_id: ICD release ID (default: 2025-01)
+        Other parameters match the official ICD API search parameters
+    """
+    # Create cache key based on all parameters
+    params = {
+        "q": q,
+        "subtreeFilterUsesFoundationDescendants": str(subtreeFilterUsesFoundationDescendants).lower(),
+        "includeKeywordResult": str(includeKeywordResult).lower(),
+        "useFlexisearch": str(useFlexisearch).lower(),
+        "flatResults": str(flatResults).lower(),
+        "highlightingEnabled": str(highlightingEnabled).lower(),
+        "medicalCodingMode": str(medicalCodingMode).lower()
+    }
+    
+    # Create a deterministic cache key from parameters
+    param_str = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
+    cache_key = f"icd_search:{release_id}:{param_str}"
+    
+    # Try to get from cache
+    cached_data = redis_client.get(cache_key)
+    if cached_data:
+        return json.loads(cached_data)
+    
+    # Prepare the search request
+    token = await get_valid_token()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+        "Accept-Language": "en",
+        "API-Version": "v2",
+    }
+    
+    # Build search URL
+    search_url = f"{ICD_BASE_URL}/release/11/{release_id}/mms/search"
+    
+    try:
+        response = requests.get(search_url, headers=headers, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Cache results for 1 hour (can adjust as needed)
+        redis_client.set(cache_key, json.dumps(data), ex=3600)
+        
+        return data
+    except requests.exceptions.RequestException as e:
+        error_msg = f"Error searching ICD data: {str(e)}"
+        if hasattr(e.response, 'text'):
+            error_msg += f" Response: {e.response.text}"
+        raise HTTPException(status_code=500, detail=error_msg)
+
 # Start the token refresh task when the app starts
 @app.on_event("startup")
 async def startup_event():

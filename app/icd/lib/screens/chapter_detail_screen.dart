@@ -25,6 +25,11 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  // Add these to your class state variables
+  List<String> _selectedPostCoordinationCodes = [];
+  Map<String, String> _entityLabels =
+      {}; // To store entity ID -> label mappings
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +37,10 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+
+    // Clear selected post-coordination codes
+    _selectedPostCoordinationCodes = [];
+    _entityLabels = {};
 
     // Start animations after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -83,6 +92,323 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
       definitionText,
       style: Theme.of(context).textTheme.bodyMedium,
     );
+  }
+
+  // Add this helper method to extract the axis display name
+  String _getAxisDisplayName(String axisName) {
+    // Extract the last part after the last slash
+    final parts = axisName.split('/');
+    String name = parts.last;
+
+    // Convert camelCase to Title Case with spaces
+    name = name.replaceAllMapped(RegExp(r'([a-z])([A-Z])'),
+        (match) => '${match.group(1)} ${match.group(2)}');
+
+    // Capitalize first letter
+    return name[0].toUpperCase() + name.substring(1);
+  }
+
+  // Add this helper method to extract the entity code from a URL
+  String _extractEntityCode(String entityUrl) {
+    final parts = entityUrl.split('/');
+    return parts.last.contains('unspecified') ? 'unspecified' : parts.last;
+  }
+
+  // Add this new widget to display post-coordination scales
+  Widget _buildPostCoordinationScales(
+      BuildContext context, Map<String, dynamic>? data) {
+    if (data == null ||
+        data['classKind'] != 'category' ||
+        data['postcoordinationScale'] == null) {
+      return const SizedBox.shrink();
+    }
+
+    final scales =
+        List<Map<String, dynamic>>.from(data['postcoordinationScale']);
+    if (scales.isEmpty) return const SizedBox.shrink();
+
+    final baseCode = data['code'] ?? '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+
+        // Composite code display (when codes are selected)
+        if (_selectedPostCoordinationCodes.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .primaryContainer
+                  .withOpacity(0.3),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Combined Code:',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _buildCompositeCode(baseCode),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                            ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.copy, size: 20),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(
+                                text: _buildCompositeCode(baseCode)))
+                            .then((_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('Combined code copied to clipboard'),
+                              behavior: SnackBarBehavior.floating,
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.clear_all, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _selectedPostCoordinationCodes.clear();
+                        });
+                      },
+                    ),
+                  ],
+                ),
+
+                // Display selected codes with remove option
+                if (_selectedPostCoordinationCodes.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _selectedPostCoordinationCodes.map((code) {
+                      return Chip(
+                        label: Text(
+                          _entityLabels[code] ?? code,
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        deleteIcon: Icon(Icons.close, size: 16),
+                        onDeleted: () {
+                          setState(() {
+                            _selectedPostCoordinationCodes.remove(code);
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+              ],
+            ),
+          ),
+
+        const SizedBox(height: 24),
+
+        // Post-coordination section header
+        Row(
+          children: [
+            Text(
+              'Post-coordination',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '?',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // Each scale section
+        ...scales.asMap().entries.map((entry) {
+          final index = entry.key;
+          final scale = entry.value;
+          final axisNameUrl = scale['axisName'] as String;
+          final axisName = _getAxisDisplayName(axisNameUrl);
+          final required = scale['requiredPostcoordination'] == 'true';
+          final allowMultiple = scale['allowMultipleValues'] == 'AllowAlways';
+          final entities = List<String>.from(scale['scaleEntity'] ?? []);
+
+          // Create description based on required and allowMultiple
+          String description = "";
+          if (required) {
+            description = "(required)";
+          } else {
+            description = "(use additional code, if desired)";
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Axis name and description
+              Text(
+                "$axisName $description",
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+              ),
+
+              if (entities.length > 8) ...[
+                // Add search field for large entity lists
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'search in axis: $axisName',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    // Implement filtering logic here
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 8),
+
+              // Entity list
+              ...entities.map((entity) {
+                final entityCode = _extractEntityCode(entity);
+                // In a real app, you'd fetch these labels from API
+                final label =
+                    "Vibrio cholerae code"; // This would be replaced with actual data
+                _entityLabels[entityCode] = label; // Store for later use
+
+                final isSelected =
+                    _selectedPostCoordinationCodes.contains(entityCode);
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4.0),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedPostCoordinationCodes.remove(entityCode);
+                        } else {
+                          _selectedPostCoordinationCodes.add(entityCode);
+                        }
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            child: isSelected
+                                ? Icon(
+                                    Icons.check_box,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    size: 20,
+                                  )
+                                : Icon(
+                                    Icons.check_box_outline_blank,
+                                    color: Colors.grey,
+                                    size: 20,
+                                  ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: entityCode,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: " $label",
+                                    style: TextStyle(
+                                      color: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+            ],
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  // Helper method to build composite code string
+  String _buildCompositeCode(String baseCode) {
+    if (_selectedPostCoordinationCodes.isEmpty) return baseCode;
+
+    // Group by axis (in a real app, you'd track which axis each code belongs to)
+    // For this example, we'll just assume first code is from first axis
+    String result = baseCode;
+
+    // Add first code with &
+    if (_selectedPostCoordinationCodes.isNotEmpty) {
+      result += "&${_selectedPostCoordinationCodes[0]}";
+    }
+
+    // Add subsequent codes with /
+    if (_selectedPostCoordinationCodes.length > 1) {
+      result += _selectedPostCoordinationCodes
+          .sublist(1)
+          .map((code) => "/$code")
+          .join("");
+    }
+
+    return result;
   }
 
   @override
@@ -185,7 +511,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                     child: Text(
                                       isChapter
                                           ? 'Chapter ${data?['code']}'
-                                          : 'Code: ${data?['code']}',
+                                          : '${data?['code']}',
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleLarge
@@ -884,6 +1210,9 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                         const SizedBox(height: 24),
                       ],
                     ],
+
+                    // Post-Coordination Scales section
+                    _buildPostCoordinationScales(context, data),
                   ],
                 ),
               ),

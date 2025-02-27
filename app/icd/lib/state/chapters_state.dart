@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/http.dart';
 import 'dart:convert';
+import '../models/search_result.dart';
 
 class Chapters extends ChangeNotifier {
   final HttpService _httpService = HttpService();
@@ -361,5 +362,58 @@ class Chapters extends ChangeNotifier {
       print("Error loading item data: $e");
       return null;
     }
+  }
+
+  // Add the following properties to your Chapters class
+  SearchResult searchResults = SearchResult.empty();
+  bool isSearching = false;
+  String searchQuery = '';
+
+  // Add these methods to your Chapters class
+  Future<void> searchIcd(String query) async {
+    if (query.isEmpty) {
+      searchResults = SearchResult.empty();
+      notifyListeners();
+      return;
+    }
+
+    try {
+      setState(() {
+        isSearching = true;
+        searchQuery = query;
+        error = null;
+      });
+
+      final result = await _httpService.searchIcd(query: query);
+      searchResults = SearchResult.fromJson(result);
+
+      // Also cache the results for any entities returned
+      for (final entity in searchResults.entities) {
+        if (!hierarchyData.containsKey(entity.id)) {
+          // Extract basic information into our hierarchy data structure
+          hierarchyData[entity.id] = {
+            'title': {'@value': entity.plainTitle},
+            'code': entity.code,
+            'classKind':
+                entity.isPostcoordination ? 'postcoordination' : 'category',
+          };
+        }
+      }
+    } catch (e) {
+      setState(() {
+        error = 'Failed to search: $e';
+      });
+    } finally {
+      setState(() {
+        isSearching = false;
+      });
+    }
+  }
+
+  void clearSearch() {
+    setState(() {
+      searchResults = SearchResult.empty();
+      searchQuery = '';
+    });
   }
 }

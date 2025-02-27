@@ -2,10 +2,13 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_drawer/flutter_advanced_drawer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:icd/screens/search_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/chapter_detail_screen.dart';
 import 'state/chapters_state.dart';
+import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
+import 'package:lottie/lottie.dart';
 
 void main() {
   runApp(
@@ -84,8 +87,35 @@ class Home extends StatefulWidget {
   State<Home> createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
+class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
   final _advancedDrawerController = AdvancedDrawerController();
+  int _bottomNavIndex = 0;
+  late AnimationController _fabAnimationController;
+  late Animation<double> _fabAnimation;
+
+  final List<IconData> iconList = [
+    Icons.home,
+    Icons.person,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fabAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fabAnimation = CurvedAnimation(
+      parent: _fabAnimationController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _fabAnimationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -675,6 +705,133 @@ class _HomeState extends State<Home> {
               },
             );
           },
+        ),
+        floatingActionButton: Container(
+          height: 64,
+          width: 64,
+          margin: const EdgeInsets.only(top: 40),
+          child: FloatingActionButton(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(32), // Make it perfectly round
+            ),
+            child: AnimatedBuilder(
+              animation: _fabAnimation,
+              builder: (context, child) {
+                // Wave-like animation effect when pressed
+                return Transform.scale(
+                  scale: 1.0 +
+                      _fabAnimation.value *
+                          0.2 *
+                          (1 -
+                              (_fabAnimation.value - 0.5).abs() *
+                                  2), // Wave equation
+                  child: Icon(
+                    _fabAnimationController.isDismissed
+                        ? Icons.search
+                        : Icons.close,
+                    size: 28,
+                  ),
+                );
+              },
+            ),
+            onPressed: () {
+              if (_fabAnimationController.isDismissed) {
+                // Wave animation
+                _fabAnimationController.forward();
+
+                // Add a slight delay before opening the search screen
+                Future.delayed(const Duration(milliseconds: 300), () {
+                  // Show search screen with animation
+                  Navigator.of(context)
+                      .push(
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const SearchScreen(),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            const begin = Offset(0.0, 1.0);
+                            const end = Offset.zero;
+                            const curve = Curves.easeOutQuint;
+
+                            var tween = Tween(begin: begin, end: end)
+                                .chain(CurveTween(curve: curve));
+
+                            return SlideTransition(
+                              position: animation.drive(tween),
+                              child: child,
+                            );
+                          },
+                        ),
+                      )
+                      .then((_) => _fabAnimationController.reverse());
+                });
+              } else {
+                _fabAnimationController.reverse();
+              }
+            },
+          )
+              .animate(onPlay: (controller) => controller.repeat(reverse: true))
+              .shimmer(duration: 2000.ms, color: Colors.white30, size: 0.2),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: AnimatedBottomNavigationBar.builder(
+          itemCount: 2,
+          tabBuilder: (int index, bool isActive) {
+            final color = isActive
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade400;
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  index == 0 ? Icons.home : Icons.person,
+                  size: 24,
+                  color: color,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  index == 0 ? "Home" : "Profile",
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            );
+          },
+          activeIndex: _bottomNavIndex,
+          gapLocation: GapLocation.center,
+          notchSmoothness: NotchSmoothness.verySmoothEdge, // Smoother notch
+          leftCornerRadius: 32,
+          rightCornerRadius: 32,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          onTap: (index) {
+            setState(() => _bottomNavIndex = index);
+
+            switch (index) {
+              case 0: // Home
+                _advancedDrawerController.hideDrawer();
+                break;
+              case 1: // Profile
+                _advancedDrawerController.showDrawer();
+                break;
+            }
+          },
+          shadow: BoxShadow(
+            offset: const Offset(0, -5),
+            blurRadius: 10,
+            color: Colors.black.withOpacity(0.1),
+          ),
+          splashRadius: 0, // Disable splash effect
+          splashColor: Colors.transparent,
+          elevation: 16,
         ),
       ),
     );
