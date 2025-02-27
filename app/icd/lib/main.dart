@@ -1,5 +1,6 @@
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_advanced_drawer/flutter_advanced_drawer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -84,44 +85,111 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  final _advancedDrawerController = AdvancedDrawerController();
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('ICD-11 Chapters')
-            .animate()
-            .fadeIn(duration: 600.ms)
-            .slideX(begin: -0.1, end: 0),
-        elevation: 0,
-        scrolledUnderElevation: 4,
-        flexibleSpace: Container(
+    return AdvancedDrawer(
+      drawer: SafeArea(
+        child: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
               colors: [
                 Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                Theme.of(context).colorScheme.primary.withOpacity(0.7),
               ],
             ),
           ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
+          child: ListTileTheme(
+            textColor: Colors.white,
+            iconColor: Colors.white,
+            child: Column(
+              mainAxisSize: MainAxisSize.max,
               children: [
-                Text(
-                  'Clear cache',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onPrimary,
+                Container(
+                  width: 128.0,
+                  height: 128.0,
+                  margin: const EdgeInsets.only(
+                    top: 24.0,
+                    bottom: 24.0,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  decoration: const BoxDecoration(
+                    color: Colors.white24,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      "ICD",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 42,
+                      ),
+                    ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_forever),
-                  onPressed: () async {
-                    // Show confirmation dialog with animation
+
+                Container(
+                  margin: const EdgeInsets.only(bottom: 24),
+                  child: Text(
+                    "ICD-11 Browser",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                    ),
+                  ),
+                ),
+
+                Divider(color: Colors.white30),
+
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                  },
+                  leading: const Icon(Icons.home),
+                  title: const Text('Home'),
+                ),
+
+                ListTile(
+                  onTap: () async {
+                    // Show favorites list - implement later
+                    _advancedDrawerController.hideDrawer();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Favorites feature coming soon'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.favorite),
+                  title: const Text('Favorites'),
+                ),
+
+                ListTile(
+                  onTap: () async {
+                    // Show history of viewed codes - implement later
+                    _advancedDrawerController.hideDrawer();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('History feature coming soon'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.history),
+                  title: const Text('History'),
+                ),
+
+                ListTile(
+                  onTap: () async {
+                    // Clear the cache after confirmation
+                    _advancedDrawerController.hideDrawer();
                     showModal(
                       context: context,
                       builder: (context) => AlertDialog(
@@ -130,7 +198,8 @@ class _HomeState extends State<Home> {
                         ),
                         title: const Text('Clear Cache'),
                         content: const Text(
-                            'Are you sure you want to clear all cached data? This will require reloading all data from the server.'),
+                          'Are you sure you want to clear all cached data? This will require reloading all data from the server.',
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
@@ -174,161 +243,444 @@ class _HomeState extends State<Home> {
                       ),
                     );
                   },
+                  leading: const Icon(Icons.cleaning_services),
+                  title: const Text('Clear Cache'),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: Consumer<Chapters>(
-        builder: (context, chapters, _) {
-          // Show a loading indicator if chapters aren't initialized yet
-          if (!chapters.isInitialized) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Loading ICD-11 Chapters...'),
-                ],
-              ),
-            );
-          }
 
-          // Show error if initialization failed
-          if (chapters.error != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: Colors.red),
-                  SizedBox(height: 16),
-                  Text('Error: ${chapters.error}'),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      chapters.initializeChapters();
-                    },
-                    child: Text('Retry'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          // Display chapters list
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: chapters.chapterUrls.length,
-            itemBuilder: (context, index) {
-              final url = chapters.chapterUrls[index];
-              final data = chapters.getDataForUrl(url);
-
-              return OpenContainer(
-                transitionDuration: Duration(milliseconds: 300),
-                openBuilder: (_, __) => ChapterDetailScreen(
-                  url: url,
-                  chapterTitle:
-                      data?['title']?['@value'] ?? 'Chapter ${index + 1}',
-                ),
-                closedElevation: 0,
-                closedColor: Colors.transparent,
-                middleColor: Theme.of(context).colorScheme.surface,
-                transitionType: ContainerTransitionType.fadeThrough,
-                closedBuilder: (_, openContainer) => Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 3,
-                  shadowColor:
-                      Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: InkWell(
-                    onTap: () {
-                      chapters.loadChapterData(url);
-                      openContainer();
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 20),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Theme.of(context).colorScheme.primary,
-                                  Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.8),
-                                ],
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                '${index + 1}',
-                                style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  data != null && data['title'] != null
-                                      ? data['title']['@value']
-                                      : 'Chapter ${index + 1}',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
-                                ),
-                                if (data != null && data['description'] != null)
-                                  Text(
-                                    data['description']['@value'],
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 18,
-                          ),
-                        ],
-                      ),
+                // Medical Tools Section
+                Divider(color: Colors.white30),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    "Medical Tools",
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
                     ),
                   ),
                 ),
-              )
-                  .animate()
-                  .fadeIn(delay: Duration(milliseconds: 50 * index))
-                  .slideY(
-                      begin: 0.2,
-                      end: 0,
-                      delay: Duration(milliseconds: 50 * index));
-            },
-          );
-        },
+
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Code Search feature coming soon'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.search),
+                  title: const Text('ICD Search'),
+                ),
+
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content:
+                            const Text('Offline codes feature coming soon'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.download),
+                  title: const Text('Download Offline Data'),
+                ),
+
+                const Spacer(),
+
+                // Contact & About Section
+                Divider(color: Colors.white30),
+
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return Dialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.of(context).size.width * 0.8,
+                              minWidth: 280,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Contact Developer',
+                                    style:
+                                        Theme.of(context).textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text('Name: Vinayachandra'),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      const Icon(Icons.email, size: 16),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: SelectableText(
+                                          'vinaychandra166@gmail.com',
+                                          style: const TextStyle(
+                                            decoration:
+                                                TextDecoration.underline,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      const Icon(Icons.phone, size: 16),
+                                      const SizedBox(width: 8),
+                                      SelectableText('7996336041'),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      child: const Text('Close'),
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  leading: const Icon(Icons.contact_mail),
+                  title: const Text('Contact Developer'),
+                ),
+
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: Text('About ICD-11 Browser'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('ICD-11 Browser'),
+                              const SizedBox(height: 8),
+                              Text('Version 1.0.0'),
+                              const SizedBox(height: 16),
+                              Text(
+                                  'This application is licensed under GNU General Public License v3.0'),
+                              const SizedBox(height: 8),
+                              Text('Source available at:',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              SelectableText(
+                                  'https://github.com/Vinayy25/ICD-Alar.git'),
+                            ],
+                          ),
+                          actions: <Widget>[
+                            TextButton(
+                              child: Text('Close'),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                            TextButton(
+                              child: Text('View License'),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: Text('GNU GPL v3 License'),
+                                      content: Container(
+                                        width: double.maxFinite,
+                                        height: 400,
+                                        child: SingleChildScrollView(
+                                          child: Text(
+                                              'GNU GENERAL PUBLIC LICENSE\n'
+                                              'Version 3, 29 June 2007\n\n'
+                                              'Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>\n'
+                                              'Everyone is permitted to copy and distribute verbatim copies of this license document, but changing it is not allowed.\n\n'
+                                              'This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n\n'
+                                              'This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.\n\n'
+                                              'You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.'),
+                                        ),
+                                      ),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          child: Text('Close'),
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  leading: const Icon(Icons.info),
+                  title: const Text('About'),
+                ),
+
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ),
+      ),
+      backdrop: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              Theme.of(context).colorScheme.secondary.withOpacity(0.5),
+            ],
+          ),
+        ),
+      ),
+      controller: _advancedDrawerController,
+      animationCurve: Curves.easeInOut,
+      animationDuration: const Duration(milliseconds: 300),
+      animateChildDecoration: true,
+      rtlOpening: false,
+      disabledGestures: false,
+      childDecoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 8.0,
+          ),
+        ],
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+      ),
+      child: Scaffold(
+        // Update the appbar to include the drawer toggle button
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: _handleMenuButtonPressed,
+            icon: ValueListenableBuilder<AdvancedDrawerValue>(
+              valueListenable: _advancedDrawerController,
+              builder: (_, value, __) {
+                return AnimatedSwitcher(
+                  duration: Duration(milliseconds: 250),
+                  child: value.visible
+                      ? Icon(Icons.clear, key: ValueKey('close'))
+                      : Icon(Icons.menu, key: ValueKey('menu')),
+                );
+              },
+            ),
+          ),
+          title: const Text('ICD-11 Browser')
+              .animate()
+              .fadeIn(duration: 600.ms)
+              .slideX(begin: -0.1, end: 0),
+          elevation: 0,
+          scrolledUnderElevation: 4,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                ],
+              ),
+            ),
+          ),
+          // Remove the clear cache action from app bar since it's now in the drawer
+        ),
+        // Rest of your existing Scaffold body
+        body: Consumer<Chapters>(
+          builder: (context, chapters, _) {
+            // Show a loading indicator if chapters aren't initialized yet
+            if (!chapters.isInitialized) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading ICD-11 Chapters...'),
+                  ],
+                ),
+              );
+            }
+
+            // Show error if initialization failed
+            if (chapters.error != null) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    SizedBox(height: 16),
+                    Text('Error: ${chapters.error}'),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        chapters.initializeChapters();
+                      },
+                      child: Text('Retry'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            // Display chapters list
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: chapters.chapterUrls.length,
+              itemBuilder: (context, index) {
+                final url = chapters.chapterUrls[index];
+                final data = chapters.getDataForUrl(url);
+
+                return OpenContainer(
+                  transitionDuration: Duration(milliseconds: 300),
+                  openBuilder: (_, __) => ChapterDetailScreen(
+                    url: url,
+                    chapterTitle:
+                        data?['title']?['@value'] ?? 'Chapter ${index + 1}',
+                  ),
+                  closedElevation: 0,
+                  closedColor: Colors.transparent,
+                  middleColor: Theme.of(context).colorScheme.surface,
+                  transitionType: ContainerTransitionType.fadeThrough,
+                  closedBuilder: (_, openContainer) => Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    elevation: 3,
+                    shadowColor:
+                        Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        chapters.loadChapterData(url);
+                        openContainer();
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 18, horizontal: 20),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Theme.of(context).colorScheme.primary,
+                                    Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withOpacity(0.8),
+                                  ],
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    data != null && data['title'] != null
+                                        ? data['title']['@value']
+                                        : 'Chapter ${index + 1}',
+                                    style:
+                                        Theme.of(context).textTheme.titleMedium,
+                                  ),
+                                  if (data != null &&
+                                      data['description'] != null)
+                                    Text(
+                                      data['description']['@value'],
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_ios,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                    .animate()
+                    .fadeIn(delay: Duration(milliseconds: 50 * index))
+                    .slideY(
+                        begin: 0.2,
+                        end: 0,
+                        delay: Duration(milliseconds: 50 * index));
+              },
+            );
+          },
+        ),
       ),
     );
+  }
+
+  void _handleMenuButtonPressed() {
+    _advancedDrawerController.showDrawer();
   }
 }

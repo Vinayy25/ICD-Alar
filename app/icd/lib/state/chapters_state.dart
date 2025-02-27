@@ -347,4 +347,19 @@ class Chapters extends ChangeNotifier {
       });
     }
   }
+
+  // Add this method to your Chapters class
+  Future<Map<String, dynamic>?> loadItemData(String url) async {
+    try {
+      if (hierarchyData.containsKey(url)) {
+        return hierarchyData[url];
+      }
+
+      final data = await _loadAndCacheData(url);
+      return data;
+    } catch (e) {
+      print("Error loading item data: $e");
+      return null;
+    }
+  }
 }
