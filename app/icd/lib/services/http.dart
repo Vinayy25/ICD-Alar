@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 
 class HttpService {
@@ -74,6 +75,7 @@ class HttpService {
 
     final uri =
         Uri.parse('$baseUrl/search').replace(queryParameters: queryParams);
+    print("🌐 Search request URL: $uri");
 
     try {
       final response = await http.get(
@@ -84,12 +86,33 @@ class HttpService {
         },
       );
 
+      print("📡 Search response status: ${response.statusCode}");
+
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final responseBody = response.body;
+        print("📦 Response length: ${responseBody.length} bytes");
+
+        if (responseBody.isEmpty) {
+          print("❌ Empty response body");
+          throw Exception('Empty response from server');
+        }
+
+        try {
+          final jsonData = json.decode(responseBody);
+          return jsonData;
+        } catch (e) {
+          print("❌ JSON parsing error: $e");
+          print(
+              "📄 Response preview: ${responseBody.substring(0, min(200, responseBody.length))}");
+          throw Exception('Failed to parse response: $e');
+        }
       } else {
+        print("❌ Error response: ${response.body}");
         throw Exception('Failed to search: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print("🚨 HTTP request error: $e");
+      print("🔍 Stack trace: $stackTrace");
       throw Exception('Error searching: $e');
     }
   }

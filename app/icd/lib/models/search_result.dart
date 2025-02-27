@@ -37,8 +37,8 @@ class SearchResultEntity {
   factory SearchResultEntity.fromJson(Map<String, dynamic> json) {
     List<MatchingProperty> matchingProps = [];
     if (json['matchingPVs'] != null) {
-      matchingProps = List<MatchingProperty>.from(
-          (json['matchingPVs'] as List).map((x) => MatchingProperty.fromJson(x)));
+      matchingProps = List<MatchingProperty>.from((json['matchingPVs'] as List)
+          .map((x) => MatchingProperty.fromJson(x)));
     }
 
     return SearchResultEntity(
@@ -116,16 +116,45 @@ class SearchResult {
   });
 
   factory SearchResult.fromJson(Map<String, dynamic> json) {
+    print("🔄 Processing search result JSON");
+
     List<SearchResultEntity> entities = [];
-    if (json['destinationEntities'] != null) {
-      entities = List<SearchResultEntity>.from((json['destinationEntities'] as List)
-          .map((x) => SearchResultEntity.fromJson(x)));
+    if (json.containsKey('destinationEntities') &&
+        json['destinationEntities'] != null) {
+      try {
+        final destinationEntities = json['destinationEntities'] as List;
+        print("📋 Found ${destinationEntities.length} destination entities");
+
+        entities = destinationEntities
+            .map((x) {
+              try {
+                return SearchResultEntity.fromJson(x);
+              } catch (e) {
+                print("⚠️ Error parsing entity: $e");
+                print("📑 Entity data: $x");
+                return null;
+              }
+            })
+            .whereType<SearchResultEntity>()
+            .toList();
+
+        print("✅ Successfully parsed ${entities.length} entities");
+      } catch (e) {
+        print("❌ Error parsing entities list: $e");
+      }
+    } else {
+      print("❌ Missing 'destinationEntities' in JSON");
     }
 
     List<String> words = [];
-    if (json['words'] != null) {
-      words = List<String>.from((json['words'] as List)
-          .map((x) => x['label'] as String));
+    if (json.containsKey('words') && json['words'] != null) {
+      try {
+        words =
+            (json['words'] as List).map((x) => x['label'] as String).toList();
+        print("📝 Found ${words.length} suggested words");
+      } catch (e) {
+        print("⚠️ Error parsing words: $e");
+      }
     }
 
     return SearchResult(

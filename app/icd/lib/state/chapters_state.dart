@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/http.dart';
@@ -384,8 +386,37 @@ class Chapters extends ChangeNotifier {
         error = null;
       });
 
+      print("🔍 Searching for: $query");
       final result = await _httpService.searchIcd(query: query);
+
+      print(
+          "📊 Search API response: ${result.toString().substring(0, min(100, result.toString().length))}...");
+
+      if (result == null) {
+        print("❌ Search returned null result");
+        setState(() {
+          error = 'Search returned null result';
+        });
+        return;
+      }
+
+      // Check if the result contains destinationEntities
+      if (!result.containsKey('destinationEntities')) {
+        print("❌ Missing destinationEntities in search result: ${result.keys}");
+        setState(() {
+          error = 'Invalid search result format';
+        });
+        return;
+      }
+
       searchResults = SearchResult.fromJson(result);
+      print("🔢 Found ${searchResults.entities.length} search results");
+
+      // Log the first result if available
+      if (searchResults.entities.isNotEmpty) {
+        print(
+            "✅ First result: ${searchResults.entities[0].code} - ${searchResults.entities[0].plainTitle}");
+      }
 
       // Also cache the results for any entities returned
       for (final entity in searchResults.entities) {
@@ -399,7 +430,9 @@ class Chapters extends ChangeNotifier {
           };
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print("🚨 Search error: $e");
+      print("🔍 Stack trace: $stackTrace");
       setState(() {
         error = 'Failed to search: $e';
       });
@@ -411,9 +444,14 @@ class Chapters extends ChangeNotifier {
   }
 
   void clearSearch() {
-    setState(() {
-      searchResults = SearchResult.empty();
-      searchQuery = '';
-    });
+    try {
+      setState(() {
+        searchResults = SearchResult.empty();
+        searchQuery = '';
+        isSearching = false;
+      });
+    } catch (e) {
+      print("Error in clearSearch: $e");
+    }
   }
 }

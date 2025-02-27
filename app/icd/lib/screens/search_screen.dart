@@ -33,14 +33,29 @@ class _SearchScreenState extends State<SearchScreen>
 
     _animationController.forward();
 
-    // Clear any previous search results
+    // Clear search state completely on screen initialization
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<Chapters>(context, listen: false).clearSearch();
+      _searchController.clear();
+      setState(() {
+        _query = '';
+        _isSearching = false;
+      });
+      try {
+        Provider.of<Chapters>(context, listen: false).clearSearch();
+      } catch (e) {
+        print("Error clearing search: $e");
+      }
     });
   }
 
   @override
   void dispose() {
+    // Also clear search state on screen disposal
+    try {
+      Provider.of<Chapters>(context, listen: false).clearSearch();
+    } catch (e) {
+      print("Error clearing search on dispose: $e");
+    }
     _animationController.dispose();
     _searchController.dispose();
     _scrollController.dispose();
@@ -145,41 +160,76 @@ class _SearchScreenState extends State<SearchScreen>
             Expanded(
               child: Consumer<Chapters>(
                 builder: (context, chapters, _) {
-                  // If searching, show loading
-                  if (chapters.isSearching) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+                  try {
+                    // If there's an error, show it
+                    if (chapters.error != null) {
+                      print("🚨 Search error displayed: ${chapters.error}");
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.red[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error: ${chapters.error}',
+                              style: Theme.of(context).textTheme.titleMedium,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      );
+                    }
 
-                  // If has results, show results
-                  if (chapters.searchResults.entities.isNotEmpty) {
-                    return _buildSearchResults(chapters.searchResults);
-                  }
+                    // If searching, show loading
+                    if (chapters.isSearching) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                  // If not searching and has query, show no results
-                  if (_isSearching &&
-                      _query.isNotEmpty &&
-                      chapters.searchResults.entities.isEmpty) {
+                    print(
+                        "🔍 Search state - Query: '$_query', Results: ${chapters.searchResults.entities.length}");
+
+                    // If has results, show results
+                    if (chapters.searchResults.entities.isNotEmpty) {
+                      return _buildSearchResults(chapters.searchResults);
+                    }
+
+                    // If not searching and has query, show no results
+                    if (_query.isNotEmpty &&
+                        !chapters.isSearching &&
+                        chapters.searchQuery == _query) {
+                      print("📭 No results found for query: $_query");
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No results found for "$_query"',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    // Default state - show search suggestions
+                    return _buildSearchSuggestions();
+                  } catch (e, stackTrace) {
+                    print("🚨 Error in search UI: $e");
+                    print("🔍 Stack trace: $stackTrace");
                     return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No results found for "$_query"',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ],
-                      ),
+                      child: Text("Something went wrong with the search: $e"),
                     );
                   }
-
-                  // Default state - show search suggestions
-                  return _buildSearchSuggestions();
                 },
               ),
             ),
@@ -336,8 +386,9 @@ class _SearchScreenState extends State<SearchScreen>
     if (entity.chapterCode.isNotEmpty) {
       // Generate a color based on chapter code
       final chapterIndex = int.tryParse(entity.chapterCode) ?? 1;
-      final hue = (chapterIndex * 30) % 360;
-      chapterColor = HSVColor.fromAHSV(1.0, hue.toDouble(), 0.5, 0.8).toColor();
+      // Convert to double explicitly for HSVColor
+      final hue = ((chapterIndex * 30) % 360).toDouble();
+      chapterColor = HSVColor.fromAHSV(1.0, hue, 0.5, 0.8).toColor();
     }
 
     return Card(
@@ -354,7 +405,8 @@ class _SearchScreenState extends State<SearchScreen>
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) => ChapterDetailScreen(url: entity.id, chapterTitle: plainTitle),
+              builder: (context) =>
+                  ChapterDetailScreen(url: entity.id, chapterTitle: plainTitle),
             ),
           );
         },
