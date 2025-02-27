@@ -296,7 +296,7 @@ class Chapters extends ChangeNotifier {
     return data['classKind'] ?? '';
   }
 
-  // Add this new method to load all children for a screen
+  // Replace both loadScreenData methods with this unified implementation
   Future<void> loadScreenData(String url) async {
     try {
       setState(() {
@@ -305,47 +305,89 @@ class Chapters extends ChangeNotifier {
         selectedChapterUrl = url;
       });
 
-      // First load the current screen's data
-      if (!hierarchyData.containsKey(url)) {
-        await _loadAndCacheData(url);
-      }
+      print("🔍 Loading screen data for URL: $url");
 
-      final currentData = hierarchyData[url]!;
+      // Check if this is a search result URL (contains '&')
+      final isSearchResultUrl = url.contains('&');
 
-      // Then load all its immediate children
-      if (currentData['child'] != null && currentData['child'] is List) {
-        final childUrls = List<String>.from(currentData['child']);
-        hierarchyChain[url] = childUrls;
+      if (isSearchResultUrl) {
+        print("🔄 Processing search result URL with postcoordination");
 
-        // Load all children in parallel
-        await Future.wait(childUrls.map((childUrl) async {
-          if (!hierarchyData.containsKey(childUrl)) {
-            final childData = await _loadAndCacheData(childUrl);
+        // Parse compound URLs (postcoordination URLs like "url1 & url2")
+        final urlParts = url.split(' & ');
 
-            // Also load the children of each child
-            if (childData['child'] != null && childData['child'] is List) {
-              final grandChildUrls = List<String>.from(childData['child']);
-              hierarchyChain[childUrl] = grandChildUrls;
+        // First load the base entity
+        final baseUrl = urlParts[0];
+        await _loadEntityData(baseUrl);
 
-              // Load all grandchildren in parallel
-              await Future.wait(grandChildUrls.map((grandChildUrl) async {
-                if (!hierarchyData.containsKey(grandChildUrl)) {
-                  await _loadAndCacheData(grandChildUrl);
-                }
-              }));
+        // Then load all referenced entity URLs
+        for (int i = 1; i < urlParts.length; i++) {
+          await _loadEntityData(urlParts[i]);
+        }
+
+        // Combine data if needed (basic implementation)
+        if (!hierarchyData.containsKey(url) &&
+            hierarchyData.containsKey(baseUrl)) {
+          // Copy base data to compound URL
+          hierarchyData[url] = Map.from(hierarchyData[baseUrl]!);
+          hierarchyData[url]!['isComposed'] = true;
+        }
+
+        // Set as current data
+        final currentData = hierarchyData[url]!;
+        setState(() {
+          selectedChapterData = currentData;
+        });
+      } else {
+        // Regular URL handling
+        if (!hierarchyData.containsKey(url)) {
+          await _loadAndCacheData(url);
+        }
+
+        final currentData = hierarchyData[url]!;
+        setState(() {
+          selectedChapterData = currentData;
+        });
+
+        // Then load all its immediate children
+        if (currentData['child'] != null && currentData['child'] is List) {
+          final childUrls = List<String>.from(currentData['child']);
+          hierarchyChain[url] = childUrls;
+
+          print("👨‍👧‍👦 Prefetching ${childUrls.length} child URLs");
+
+          // Load children in parallel (limit to 10 to avoid overloading)
+          final childrenToLoad = childUrls.take(10).toList();
+          await Future.wait(childrenToLoad.map((childUrl) async {
+            if (!hierarchyData.containsKey(childUrl)) {
+              final childData = await _loadAndCacheData(childUrl);
+
+              // Also load the first few grandchildren
+              if (childData['child'] != null && childData['child'] is List) {
+                final grandChildUrls = List<String>.from(childData['child']);
+                hierarchyChain[childUrl] = grandChildUrls;
+
+                // Load a limited number of grandchildren
+                final grandChildrenToLoad = grandChildUrls.take(5).toList();
+                await Future.wait(
+                    grandChildrenToLoad.map((grandChildUrl) async {
+                  if (!hierarchyData.containsKey(grandChildUrl)) {
+                    await _loadAndCacheData(grandChildUrl);
+                  }
+                }));
+              }
             }
-          }
-        }));
+          }));
+        }
       }
-
+    } catch (e, stackTrace) {
+      print("❌ Error loading screen data: $e");
+      print("🔍 Stack trace: $stackTrace");
       setState(() {
-        selectedChapterData = currentData;
-        isLoading = false;
+        error = 'Failed to load data: $e';
       });
-    } catch (e) {
-      print("Error loading screen data: $e");
+    } finally {
       setState(() {
-        error = e.toString();
         isLoading = false;
       });
     }
@@ -389,39 +431,31 @@ class Chapters extends ChangeNotifier {
       print("🔍 Searching for: $query");
       final result = await _httpService.searchIcd(query: query);
 
-      print(
-          "📊 Search API response: ${result.toString().substring(0, min(100, result.toString().length))}...");
-
-      if (result == null) {
-        print("❌ Search returned null result");
+      // Handle error responses from our modified HTTP service
+      if (result['error'] == true) {
+        print("⚠️ Search returned with error: ${result['errorMessage']}");
         setState(() {
-          error = 'Search returned null result';
+          // Create an empty search result but with error info
+          searchResults = SearchResult(
+            entities: [],
+            hasError: true,
+            errorMessage: result['errorMessage'] as String?,
+            resultChopped: false,
+            suggestedWords: [],
+            uniqueSearchId: '',
+          );
+          error = result['errorMessage'] as String?;
         });
         return;
       }
 
-      // Check if the result contains destinationEntities
-      if (!result.containsKey('destinationEntities')) {
-        print("❌ Missing destinationEntities in search result: ${result.keys}");
-        setState(() {
-          error = 'Invalid search result format';
-        });
-        return;
-      }
-
+      // Normal processing continues...
       searchResults = SearchResult.fromJson(result);
       print("🔢 Found ${searchResults.entities.length} search results");
 
-      // Log the first result if available
-      if (searchResults.entities.isNotEmpty) {
-        print(
-            "✅ First result: ${searchResults.entities[0].code} - ${searchResults.entities[0].plainTitle}");
-      }
-
-      // Also cache the results for any entities returned
+      // Cache results
       for (final entity in searchResults.entities) {
         if (!hierarchyData.containsKey(entity.id)) {
-          // Extract basic information into our hierarchy data structure
           hierarchyData[entity.id] = {
             'title': {'@value': entity.plainTitle},
             'code': entity.code,
@@ -435,6 +469,7 @@ class Chapters extends ChangeNotifier {
       print("🔍 Stack trace: $stackTrace");
       setState(() {
         error = 'Failed to search: $e';
+        searchResults = SearchResult.empty();
       });
     } finally {
       setState(() {
@@ -452,6 +487,29 @@ class Chapters extends ChangeNotifier {
       });
     } catch (e) {
       print("Error in clearSearch: $e");
+    }
+  }
+
+  // Helper method to load a single entity
+  Future<Map<String, dynamic>?> _loadEntityData(String url) async {
+    try {
+      // Check cache first
+      if (hierarchyData.containsKey(url)) {
+        return hierarchyData[url];
+      }
+
+      // Not in cache, need to fetch
+      print("🌐 Fetching entity data: $url");
+      final data = await _httpService.getIcdData(url);
+
+      // Store in cache
+      hierarchyData[url] = data;
+
+      // Return the data
+      return data;
+    } catch (e) {
+      print("⚠️ Error loading entity data for $url: $e");
+      return null;
     }
   }
 }

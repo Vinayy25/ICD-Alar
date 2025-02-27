@@ -41,8 +41,12 @@ class SearchResultEntity {
           .map((x) => MatchingProperty.fromJson(x)));
     }
 
+    // Check if ID contains '&' to identify postcoordination results
+    final id = json['id'] as String? ?? '';
+    final isPostcoordination = id.contains('&');
+
     return SearchResultEntity(
-      id: json['id'] ?? '',
+      id: id,
       title: json['title'] ?? '',
       code: json['theCode'] ?? '',
       stemId: json['stemId'] ?? '',
@@ -50,7 +54,7 @@ class SearchResultEntity {
       chapterCode: json['chapter'] ?? '',
       score: json['score'] ?? 0.0,
       isImportant: json['important'] ?? false,
-      entityType: json['entityType'] ?? 0,
+      entityType: isPostcoordination ? 1 : (json['entityType'] ?? 0),
       matchingProperties: matchingProps,
       titleIsSearchResult: json['titleIsASearchResult'] ?? false,
       isResidualOther: json['isResidualOther'] ?? false,

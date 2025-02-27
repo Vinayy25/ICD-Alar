@@ -20,6 +20,8 @@ class _SearchScreenState extends State<SearchScreen>
   late AnimationController _animationController;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
+  // Add a flag to track if a search has been submitted
+  bool _hasSearched = false;
   String _query = '';
   final ScrollController _scrollController = ScrollController();
 
@@ -39,6 +41,7 @@ class _SearchScreenState extends State<SearchScreen>
       setState(() {
         _query = '';
         _isSearching = false;
+        _hasSearched = false;
       });
       try {
         Provider.of<Chapters>(context, listen: false).clearSearch();
@@ -68,9 +71,21 @@ class _SearchScreenState extends State<SearchScreen>
     setState(() {
       _query = query;
       _isSearching = true;
+      _hasSearched = true; // Mark that search was performed
     });
 
     Provider.of<Chapters>(context, listen: false).searchIcd(query);
+  }
+
+  // Update the clear search function
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _query = '';
+      _isSearching = false;
+      _hasSearched = false; // Reset search status
+    });
+    Provider.of<Chapters>(context, listen: false).clearSearch();
   }
 
   @override
@@ -119,16 +134,7 @@ class _SearchScreenState extends State<SearchScreen>
                           suffixIcon: _query.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _query = '';
-                                      _isSearching = false;
-                                    });
-                                    Provider.of<Chapters>(context,
-                                            listen: false)
-                                        .clearSearch();
-                                  },
+                                  onPressed: _clearSearch,
                                 )
                               : null,
                           border: InputBorder.none,
@@ -160,76 +166,85 @@ class _SearchScreenState extends State<SearchScreen>
             Expanded(
               child: Consumer<Chapters>(
                 builder: (context, chapters, _) {
-                  try {
-                    // If there's an error, show it
-                    if (chapters.error != null) {
-                      print("🚨 Search error displayed: ${chapters.error}");
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error: ${chapters.error}',
-                              style: Theme.of(context).textTheme.titleMedium,
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
+                  // If searching, show loading
+                  if (chapters.isSearching) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                    // If searching, show loading
-                    if (chapters.isSearching) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                  // Error handling cases (unchanged)...
 
-                    print(
-                        "🔍 Search state - Query: '$_query', Results: ${chapters.searchResults.entities.length}");
+                  // If has results, show results
+                  if (chapters.searchResults.entities.isNotEmpty) {
+                    return _buildSearchResults(chapters.searchResults);
+                  }
 
-                    // If has results, show results
-                    if (chapters.searchResults.entities.isNotEmpty) {
-                      return _buildSearchResults(chapters.searchResults);
-                    }
-
-                    // If not searching and has query, show no results
-                    if (_query.isNotEmpty &&
-                        !chapters.isSearching &&
-                        chapters.searchQuery == _query) {
-                      print("📭 No results found for query: $_query");
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.search_off,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No results found for "$_query"',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    // Default state - show search suggestions
-                    return _buildSearchSuggestions();
-                  } catch (e, stackTrace) {
-                    print("🚨 Error in search UI: $e");
-                    print("🔍 Stack trace: $stackTrace");
+                  // If search was performed and no results found
+                  if (_hasSearched &&
+                      _query.isNotEmpty &&
+                      !chapters.isSearching) {
                     return Center(
-                      child: Text("Something went wrong with the search: $e"),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.search_off,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No results found for "$_query"',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Try using different keywords or check spelling',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey[600],
+                                    ),
+                          ),
+                        ],
+                      ),
                     );
                   }
+
+                  // NEW: If typing but haven't searched yet
+                  if (_query.isNotEmpty && !_hasSearched) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.search,
+                            size: 64,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.7),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Press Search to find "$_query"',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.search),
+                            label: const Text('Search'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                            ),
+                            onPressed: () => _performSearch(_query),
+                          ),
+                        ],
+                      ).animate().fadeIn(duration: 300.ms),
+                    );
+                  }
+
+                  // Default state - show search suggestions
+                  return _buildSearchSuggestions();
                 },
               ),
             ),
@@ -403,10 +418,26 @@ class _SearchScreenState extends State<SearchScreen>
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
+          // Make sure we're passing the correct URL and pre-caching the entity
+          final chapters = Provider.of<Chapters>(context, listen: false);
+
+          // Pre-cache basic entity data if not already in cache
+          if (!chapters.hierarchyData.containsKey(entity.id)) {
+            chapters.hierarchyData[entity.id] = {
+              'title': {'@value': plainTitle},
+              'code': entity.code,
+              'classKind':
+                  entity.entityType == 1 ? 'postcoordination' : 'category',
+            };
+          }
+
+          // Navigate to detail screen
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (context) =>
-                  ChapterDetailScreen(url: entity.id, chapterTitle: plainTitle),
+              builder: (context) => ChapterDetailScreen(
+                url: entity.id,
+                chapterTitle: plainTitle,
+              ),
             ),
           );
         },

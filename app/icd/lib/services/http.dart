@@ -77,43 +77,75 @@ class HttpService {
         Uri.parse('$baseUrl/search').replace(queryParameters: queryParams);
     print("🌐 Search request URL: $uri");
 
-    try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      );
+    // Add retry logic for better resilience
+    int retries = 0;
+    const maxRetries = 2;
 
-      print("📡 Search response status: ${response.statusCode}");
+    while (retries <= maxRetries) {
+      try {
+        final response = await http.get(
+          uri,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 15)); // Add timeout
 
-      if (response.statusCode == 200) {
-        final responseBody = response.body;
-        print("📦 Response length: ${responseBody.length} bytes");
+        print("📡 Search response status: ${response.statusCode}");
 
-        if (responseBody.isEmpty) {
-          print("❌ Empty response body");
-          throw Exception('Empty response from server');
+        if (response.statusCode == 200) {
+          final responseBody = response.body;
+
+          if (responseBody.isEmpty) {
+            throw Exception('Empty response from server');
+          }
+
+          try {
+            final jsonData = json.decode(responseBody);
+            return jsonData;
+          } catch (e) {
+            print("❌ JSON parsing error: $e");
+            throw Exception('Failed to parse response: $e');
+          }
+        } else if (response.statusCode == 500) {
+          // Handle 500 errors specially
+          print("⚠️ Server error (500) for query: $query");
+
+          // Return empty search result structure instead of throwing an exception
+          return {
+            'destinationEntities': [],
+            'error': true,
+            'errorMessage':
+                'The server encountered an error processing this search term.',
+            'resultChopped': false,
+            'words': [],
+            'uniqueSearchId': '',
+          };
+        } else {
+          throw Exception('Failed to search: ${response.statusCode}');
+        }
+      } catch (e) {
+        retries++;
+        if (retries > maxRetries) {
+          print("⚠️ Maximum retries reached for query: $query");
+
+          // Return empty search result structure instead of throwing
+          return {
+            'destinationEntities': [],
+            'error': true,
+            'errorMessage': 'Failed to complete search: $e',
+            'resultChopped': false,
+            'words': [],
+            'uniqueSearchId': '',
+          };
         }
 
-        try {
-          final jsonData = json.decode(responseBody);
-          return jsonData;
-        } catch (e) {
-          print("❌ JSON parsing error: $e");
-          print(
-              "📄 Response preview: ${responseBody.substring(0, min(200, responseBody.length))}");
-          throw Exception('Failed to parse response: $e');
-        }
-      } else {
-        print("❌ Error response: ${response.body}");
-        throw Exception('Failed to search: ${response.statusCode}');
+        print("🔄 Retry $retries of $maxRetries for query: $query");
+        await Future.delayed(Duration(milliseconds: 500 * retries)); // Backoff
       }
-    } catch (e, stackTrace) {
-      print("🚨 HTTP request error: $e");
-      print("🔍 Stack trace: $stackTrace");
-      throw Exception('Error searching: $e');
     }
+
+    // This shouldn't be reached but just in case
+    throw Exception('Unexpected error in search');
   }
 }
