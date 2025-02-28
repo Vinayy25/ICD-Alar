@@ -94,7 +94,8 @@ class MyApp extends StatelessWidget {
             print("isNewUser: ${provider.email}");
             return Home();
           } else {
-            return Home(
+            return LoginPage(
+              authProvider: provider,
             );
           }
         },
@@ -811,7 +812,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
         bottomNavigationBar: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-          AnimatedBottomNavigationBar.builder(
+            AnimatedBottomNavigationBar.builder(
               itemCount: 2,
               tabBuilder: (int index, bool isActive) {
                 final color = isActive
