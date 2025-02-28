@@ -231,10 +231,7 @@ async def get_icd_data(url: str, background_tasks: BackgroundTasks) -> Dict[str,
     # If not in cache, fetch and cache it
     data = await fetch_icd_data(url)
     redis_client.set(cache_key, json.dumps(data), ex=CACHE_TTL)
-    
-    # Pre-cache children in the background for a smoother user experience
-    background_tasks.add_task(precache_icd_data, url, 1)  # Only one level deep for ad-hoc requests
-    
+        
     return data
 
 @app.get("/search")
