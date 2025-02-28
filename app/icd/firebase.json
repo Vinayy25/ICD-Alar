@@ -1,0 +1,33 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "icd-alar",
+          "appId": "1:19229854510:android:ee389bf28dc828194e48bf",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "icd-alar",
+          "configurations": {
+            "android": "1:19229854510:android:ee389bf28dc828194e48bf",
+            "ios": "1:19229854510:ios:3274e2380d0814294e48bf",
+            "macos": "1:19229854510:ios:3274e2380d0814294e48bf",
+            "web": "1:19229854510:web:d6e6135a3ca3cb734e48bf",
+            "windows": "1:19229854510:web:490abbb8bf536e214e48bf"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

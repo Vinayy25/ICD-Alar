@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "19229854510",
+    "project_id": "icd-alar",
+    "storage_bucket": "icd-alar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:19229854510:android:ee389bf28dc828194e48bf",
+        "android_client_info": {
+          "package_name": "com.example.icd"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "19229854510-7mdo57lgfjh5hif49a82qvrmsmoi5c2q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBbi-4_Ipwm0ALLzKK6TLpSCESjFp4HckI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "19229854510-7mdo57lgfjh5hif49a82qvrmsmoi5c2q.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "19229854510-2gb86o7ik82d8d9tn901u820m8qqc6r4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.icd"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

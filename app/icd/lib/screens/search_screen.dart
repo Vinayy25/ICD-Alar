@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:icd/widgets/alar.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 import '../state/chapters_state.dart';
@@ -95,11 +96,13 @@ class _SearchScreenState extends State<SearchScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // Search Header
+            // Search Header with ALAR branding
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.only(
+                  top: 8.0, left: 0, right: 16.0, bottom: 8.0),
               child: Row(
                 children: [
+                  const Spacer(flex: 1),
                   IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () {
@@ -107,6 +110,7 @@ class _SearchScreenState extends State<SearchScreen>
                     },
                   ),
                   Expanded(
+                    flex: 10,
                     child: Container(
                       height: 56,
                       decoration: BoxDecoration(
@@ -248,6 +252,9 @@ class _SearchScreenState extends State<SearchScreen>
                 },
               ),
             ),
+
+            // Add ALAR footer
+            const AlarFooter(isMinimal: true),
           ],
         ),
       ),
@@ -286,6 +293,7 @@ class _SearchScreenState extends State<SearchScreen>
               },
             ),
           ),
+          AlarLogo(size: 30),
           const SizedBox(height: 20),
           Text(
             'Start typing to search ICD-11',

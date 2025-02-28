@@ -1,8 +1,15 @@
 import 'package:animations/animations.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_drawer/flutter_advanced_drawer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:icd/firebase_options.dart';
+import 'package:icd/screens/auth_screen.dart';
+import 'package:icd/screens/feedback_screen.dart';
 import 'package:icd/screens/search_screen.dart';
+import 'package:icd/state/auth_state.dart';
+import 'package:icd/widgets/alar.dart';
+import 'package:icd/widgets/main_screen/floating_search.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/chapter_detail_screen.dart';
@@ -10,11 +17,17 @@ import 'state/chapters_state.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
 import 'package:lottie/lottie.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (context) => Chapters()),
+        ChangeNotifierProvider(create: (context) => AuthStateProvider()),
       ],
       child: const MyApp(),
     ),
@@ -75,7 +88,17 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const Home(),
+      home: Consumer<AuthStateProvider>(
+        builder: (context, provider, child) {
+          if (provider.isAuthenticated) {
+            print("isNewUser: ${provider.email}");
+            return Home();
+          } else {
+            return Home(
+            );
+          }
+        },
+      ),
     );
   }
 }
@@ -135,37 +158,47 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
           child: ListTileTheme(
             textColor: Colors.white,
             iconColor: Colors.white,
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
+            // Replace Column with ListView for scrolling capability
+            child: ListView(
+              padding: EdgeInsets.zero,
               children: [
                 Container(
-                  width: 128.0,
-                  height: 128.0,
-                  margin: const EdgeInsets.only(
-                    top: 24.0,
-                    bottom: 24.0,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  decoration: const BoxDecoration(
-                    color: Colors.white24,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      "ICD",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 42,
-                      ),
+                    margin: const EdgeInsets.only(
+                      top: 24.0,
+                      bottom: 24.0,
                     ),
-                  ),
-                ),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 8,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                      color: Colors.white,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Theme.of(context).colorScheme.secondary,
+                          Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.8),
+                        ],
+                      ),
+                      shape: BoxShape.rectangle,
+                      // borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: Image.asset(
+                        fit: BoxFit.cover, 'assets/icons/alar_logo_nobg.png')),
 
                 Container(
                   margin: const EdgeInsets.only(bottom: 24),
                   child: Text(
                     "ICD-11 Browser",
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -182,22 +215,6 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   },
                   leading: const Icon(Icons.home),
                   title: const Text('Home'),
-                ),
-
-                ListTile(
-                  onTap: () async {
-                    // Show favorites list - implement later
-                    _advancedDrawerController.hideDrawer();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('Favorites feature coming soon'),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  leading: const Icon(Icons.favorite),
-                  title: const Text('Favorites'),
                 ),
 
                 ListTile(
@@ -335,7 +352,62 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   title: const Text('Download Offline Data'),
                 ),
 
-                const Spacer(),
+                Divider(color: Colors.white30),
+                ListTile(
+                  onTap: () {
+                    // Close the drawer first
+                    _advancedDrawerController.hideDrawer();
+
+                    // Show confirmation dialog
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        title: const Text('Sign Out'),
+                        content: const Text(
+                          'Are you sure you want to sign out?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                            ),
+                            onPressed: () async {
+                              // Close the dialog
+                              Navigator.pop(context);
+
+                              // Get the auth provider and sign out
+                              final authProvider =
+                                  Provider.of<AuthStateProvider>(context,
+                                      listen: false);
+                              authProvider.signOut();
+
+                              // No need to navigate as the Consumer in MyApp will
+                              // automatically switch to LoginPage when isAuthenticated is false
+                            },
+                            child: const Text('Sign Out'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Sign Out'),
+                ),
 
                 // Contact & About Section
                 Divider(color: Colors.white30),
@@ -497,7 +569,8 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   title: const Text('About'),
                 ),
 
-                const SizedBox(height: 16),
+                // Add padding at the bottom for better spacing
+                const SizedBox(height: 24),
               ],
             ),
           ),
@@ -549,10 +622,20 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
               },
             ),
           ),
-          title: const Text('ICD-11 Browser')
-              .animate()
-              .fadeIn(duration: 600.ms)
-              .slideX(begin: -0.1, end: 0),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('ICD-11 Browser')
+                  .animate()
+                  .fadeIn(duration: 600.ms)
+                  .slideX(begin: -0.1, end: 0),
+              AlarLogo(
+                isAnimated: true,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+            ],
+          ),
           elevation: 0,
           scrolledUnderElevation: 4,
           flexibleSpace: Container(
@@ -720,132 +803,70 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
             );
           },
         ),
-        floatingActionButton: Container(
-          height: 64,
-          width: 64,
-          margin: const EdgeInsets.only(top: 40),
-          child: FloatingActionButton(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            elevation: 8,
-            shape: RoundedRectangleBorder(
-              borderRadius:
-                  BorderRadius.circular(32), // Make it perfectly round
-            ),
-            child: AnimatedBuilder(
-              animation: _fabAnimation,
-              builder: (context, child) {
-                // Wave-like animation effect when pressed
-                return Transform.scale(
-                  scale: 1.0 +
-                      _fabAnimation.value *
-                          0.2 *
-                          (1 -
-                              (_fabAnimation.value - 0.5).abs() *
-                                  2), // Wave equation
-                  child: Icon(
-                    _fabAnimationController.isDismissed
-                        ? Icons.search
-                        : Icons.close,
-                    size: 28,
-                  ),
+        floatingActionButton: FloatingActionSearchButton(
+            fabAnimationController: _fabAnimationController,
+            fabAnimation: _fabAnimation),
+
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+          AnimatedBottomNavigationBar.builder(
+              itemCount: 2,
+              tabBuilder: (int index, bool isActive) {
+                final color = isActive
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey.shade400;
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      index == 0 ? Icons.home : Icons.person,
+                      size: 24,
+                      color: color,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      index == 0 ? "Home" : "Feedback",
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 );
               },
+              activeIndex: _bottomNavIndex,
+              gapLocation: GapLocation.center,
+              notchSmoothness: NotchSmoothness.verySmoothEdge, // Smoother notch
+              leftCornerRadius: 32,
+              rightCornerRadius: 32,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              onTap: (index) {
+                setState(() => _bottomNavIndex = index);
+
+                switch (index) {
+                  case 0: // Home
+                    _advancedDrawerController.hideDrawer();
+                    break;
+                  case 1: // feedback
+                    Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => FeedbackScreen()));
+                    break;
+                }
+              },
+              shadow: BoxShadow(
+                offset: const Offset(0, -10),
+                blurRadius: 10,
+                color: Colors.purple.withValues(alpha: 0.1),
+              ),
+              splashRadius: 0, // Disable splash effect
+              splashColor: Colors.transparent,
+              elevation: 16,
             ),
-            onPressed: () {
-              if (_fabAnimationController.isDismissed) {
-                // Wave animation
-                _fabAnimationController.forward();
-
-                // Add a slight delay before opening the search screen
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  // Show search screen with animation
-                  Navigator.of(context)
-                      .push(
-                        PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const SearchScreen(),
-                          transitionsBuilder:
-                              (context, animation, secondaryAnimation, child) {
-                            const begin = Offset(0.0, 1.0);
-                            const end = Offset.zero;
-                            const curve = Curves.easeOutQuint;
-
-                            var tween = Tween(begin: begin, end: end)
-                                .chain(CurveTween(curve: curve));
-
-                            return SlideTransition(
-                              position: animation.drive(tween),
-                              child: child,
-                            );
-                          },
-                        ),
-                      )
-                      .then((_) => _fabAnimationController.reverse());
-                });
-              } else {
-                _fabAnimationController.reverse();
-              }
-            },
-          )
-              .animate(onPlay: (controller) => controller.repeat(reverse: true))
-              .shimmer(duration: 2000.ms, color: Colors.white30, size: 0.2),
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        bottomNavigationBar: AnimatedBottomNavigationBar.builder(
-          itemCount: 2,
-          tabBuilder: (int index, bool isActive) {
-            final color = isActive
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey.shade400;
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  index == 0 ? Icons.home : Icons.person,
-                  size: 24,
-                  color: color,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  index == 0 ? "Home" : "Profile",
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            );
-          },
-          activeIndex: _bottomNavIndex,
-          gapLocation: GapLocation.center,
-          notchSmoothness: NotchSmoothness.verySmoothEdge, // Smoother notch
-          leftCornerRadius: 32,
-          rightCornerRadius: 32,
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          onTap: (index) {
-            setState(() => _bottomNavIndex = index);
-
-            switch (index) {
-              case 0: // Home
-                _advancedDrawerController.hideDrawer();
-                break;
-              case 1: // Profile
-                _advancedDrawerController.showDrawer();
-                break;
-            }
-          },
-          shadow: BoxShadow(
-            offset: const Offset(0, -5),
-            blurRadius: 10,
-            color: Colors.black.withOpacity(0.1),
-          ),
-          splashRadius: 0, // Disable splash effect
-          splashColor: Colors.transparent,
-          elevation: 16,
+          ],
         ),
       ),
     );

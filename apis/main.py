@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from typing import List, Dict, Any
 from dotenv import load_dotenv
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -23,7 +24,13 @@ redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=T
 CURRENT_TOKEN = None
 LAST_TOKEN_REFRESH = None
 TOKEN_REFRESH_INTERVAL = timedelta(minutes=15)
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ["http://localhost:3000", "https://yourdomain.com"]
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 async def refresh_token_periodically():
     """Background task to refresh the token every 15 minutes"""
     global CURRENT_TOKEN, LAST_TOKEN_REFRESH
