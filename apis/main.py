@@ -25,7 +25,7 @@ client_secret = os.getenv("ICD_CLIENT_SECRET")
 app = FastAPI()
 ICD_BASE_URL = "https://id.who.int/icd"
 ICD_ROOT_URL = "https://id.who.int/icd/release/11/2025-01/mms"
-CACHE_TTL = 60 * 60 * 12  # 12 hours in seconds
+CACHE_TTL = 60 * 60 * 12 * 30  # 12 hours in seconds
 CACHE_REFRESH_INTERVAL = timedelta(hours=12)
 
 # Initialize the Redis client
