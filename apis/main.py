@@ -173,7 +173,7 @@ async def refresh_cache_periodically():
                 start_time = datetime.now()
                 
                 # Start pre-caching from root
-                await precache_icd_data(ICD_ROOT_URL, depth=2)
+                await precache_icd_data(ICD_ROOT_URL, depth=3)
                 
                 end_time = datetime.now()
                 logger.info(f"Cache refresh completed in {end_time - start_time}")
