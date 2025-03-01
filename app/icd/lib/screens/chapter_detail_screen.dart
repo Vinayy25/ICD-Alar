@@ -144,10 +144,13 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
               color: Theme.of(context)
                   .colorScheme
                   .primaryContainer
-                  .withOpacity(0.3),
+                  .withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.3),
               ),
             ),
             child: Column(
@@ -177,6 +180,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                         Clipboard.setData(ClipboardData(
                                 text: _buildCompositeCode(baseCode)))
                             .then((_) {
+                         
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content:
@@ -435,7 +439,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
               end: Alignment.bottomRight,
               colors: [
                 Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
               ],
             ),
           ),
@@ -481,7 +485,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                 shadowColor: Theme.of(context)
                                     .colorScheme
                                     .primary
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -502,11 +506,11 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                             ? Theme.of(context)
                                                 .colorScheme
                                                 .secondary
-                                                .withOpacity(0.8)
+                                                .withValues(alpha: 0.8)
                                             : Theme.of(context)
                                                 .colorScheme
                                                 .primary
-                                                .withOpacity(0.8),
+                                                .withValues(alpha: 0.8),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(16),
@@ -618,7 +622,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                 shadowColor: Theme.of(context)
                                     .colorScheme
                                     .tertiary
-                                    .withOpacity(0.3),
+                                    .withValues(alpha: 0.3),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
                                 ),
@@ -632,7 +636,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                         Theme.of(context)
                                             .colorScheme
                                             .tertiary
-                                            .withOpacity(0.8),
+                                            .withValues(alpha: 0.8),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(16),
@@ -758,7 +762,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                             const SizedBox(height: 8),
                             Card(
                               elevation: 2,
-                              shadowColor: Colors.black.withOpacity(0.1),
+                              shadowColor: Colors.black.withValues(alpha: 0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -829,7 +833,8 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     elevation: 2,
-                                    shadowColor: Colors.black.withOpacity(0.1),
+                                    shadowColor:
+                                        Colors.black.withValues(alpha: 0.1),
                                     child: InkWell(
                                       onTap: openContainer,
                                       borderRadius: BorderRadius.circular(16),
@@ -867,7 +872,8 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                                           Theme.of(context)
                                                               .colorScheme
                                                               .primary
-                                                              .withOpacity(0.8),
+                                                              .withValues(
+                                                                  alpha: 0.8),
                                                         ],
                                                       ),
                                                       borderRadius:
@@ -875,11 +881,13 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                                               8),
                                                       boxShadow: [
                                                         BoxShadow(
-                                                          color: Theme.of(
-                                                                  context)
-                                                              .colorScheme
-                                                              .primary
-                                                              .withOpacity(0.3),
+                                                          color:
+                                                              Theme.of(context)
+                                                                  .colorScheme
+                                                                  .primary
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.3),
                                                           blurRadius: 4,
                                                           offset: const Offset(
                                                               0, 2),
@@ -970,7 +978,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                             const SizedBox(height: 8),
                             Card(
                               elevation: 2,
-                              shadowColor: Colors.black.withOpacity(0.1),
+                              shadowColor: Colors.black.withValues(alpha: 0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -1057,7 +1065,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                             const SizedBox(height: 8),
                             Card(
                               elevation: 2,
-                              shadowColor: Colors.black.withOpacity(0.1),
+                              shadowColor: Colors.black.withValues(alpha: 0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -1140,7 +1148,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                             const SizedBox(height: 8),
                             Card(
                               elevation: 2,
-                              shadowColor: Colors.black.withOpacity(0.1),
+                              shadowColor: Colors.black.withValues(alpha: 0.1),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -1340,7 +1348,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
         borderRadius: BorderRadius.circular(16),
       ),
       elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           vertical: 12,

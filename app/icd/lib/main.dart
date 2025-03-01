@@ -5,6 +5,7 @@ import 'package:flutter_advanced_drawer/flutter_advanced_drawer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:icd/firebase_options.dart';
 import 'package:icd/screens/auth_screen.dart';
+import 'package:icd/screens/contribute_to_developer.dart';
 import 'package:icd/screens/feedback_screen.dart';
 import 'package:icd/screens/search_screen.dart';
 import 'package:icd/state/auth_state.dart';
@@ -144,6 +145,9 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return AdvancedDrawer(
+      initialDrawerScale: 0.8,
+      backdropColor: Colors.deepPurple,
+      drawerSlideRatio: 0.2,
       drawer: SafeArea(
         child: Container(
           decoration: BoxDecoration(
@@ -152,7 +156,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
               end: Alignment.bottomCenter,
               colors: [
                 Theme.of(context).colorScheme.primary,
-                Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
               ],
             ),
           ),
@@ -172,23 +176,13 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                     decoration: BoxDecoration(
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           blurRadius: 8,
                           spreadRadius: 2,
                         ),
                       ],
                       color: Colors.white,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Theme.of(context).colorScheme.secondary,
-                          Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.8),
-                        ],
-                      ),
+
                       shape: BoxShape.rectangle,
                       // borderRadius: BorderRadius.circular(30),
                     ),
@@ -351,6 +345,19 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   },
                   leading: const Icon(Icons.download),
                   title: const Text('Download Offline Data'),
+                ),
+
+                // Add to your navigation or drawer menu
+                ListTile(
+                  leading: Icon(Icons.favorite),
+                  title: Text('Support Development'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => ContributeToDeveloper()),
+                    );
+                  },
                 ),
 
                 Divider(color: Colors.white30),
@@ -585,8 +592,8 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Theme.of(context).colorScheme.primary.withOpacity(0.7),
-              Theme.of(context).colorScheme.secondary.withOpacity(0.5),
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
+              Theme.of(context).colorScheme.secondary.withValues(alpha: 0.5),
             ],
           ),
         ),
@@ -646,7 +653,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                 end: Alignment.bottomRight,
                 colors: [
                   Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
                 ],
               ),
             ),
@@ -713,8 +720,10 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   closedBuilder: (_, openContainer) => Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     elevation: 3,
-                    shadowColor:
-                        Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    shadowColor: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.2),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -742,7 +751,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                                     Theme.of(context)
                                         .colorScheme
                                         .primary
-                                        .withOpacity(0.8),
+                                        .withValues(alpha: 0.8),
                                   ],
                                 ),
                               ),

@@ -50,7 +50,7 @@ class HtmlText extends StatelessWidget {
               text: node.text,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                backgroundColor: Colors.yellow.withOpacity(0.3),
+                backgroundColor: Colors.yellow.withValues(alpha: 0.3),
               ),
             ),
           );

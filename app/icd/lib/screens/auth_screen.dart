@@ -1,5 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:icd/services/firebase_service.dart';
 import 'package:icd/state/auth_state.dart';
@@ -33,8 +31,8 @@ class _LoginPageState extends State<LoginPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              theme.colorScheme.primary.withOpacity(0.05),
-              theme.colorScheme.background,
+              theme.colorScheme.primary.withValues(alpha: 0.05),
+              theme.colorScheme.surface,
             ],
           ),
         ),
@@ -73,7 +71,7 @@ class _LoginPageState extends State<LoginPage> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -137,7 +135,8 @@ class _LoginPageState extends State<LoginPage> {
                     Text(
                       "Google account is required to use this app",
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface.withOpacity(0.7),
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -150,7 +149,7 @@ class _LoginPageState extends State<LoginPage> {
               Text(
                 "Powered by Alar",
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
               ),
               const SizedBox(height: 8),

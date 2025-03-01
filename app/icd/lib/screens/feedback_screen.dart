@@ -178,7 +178,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurface
-                                        .withOpacity(0.7),
+                                        .withValues(alpha: 0.7),
                                   ),
                             ).animate().fadeIn(delay: 200.ms),
                           ],
@@ -202,7 +202,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 10,
                               offset: const Offset(0, 2),
                             ),
@@ -405,7 +405,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .outline
-                                .withOpacity(0.2),
+                                .withValues(alpha: 0.2),
                           ),
                         ),
                         child: Padding(
@@ -482,7 +482,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -501,7 +504,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.7),
+                            .withValues(alpha: 0.7),
                       ),
                 ),
                 Text(

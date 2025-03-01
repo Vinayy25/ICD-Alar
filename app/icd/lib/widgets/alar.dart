@@ -8,8 +8,8 @@ class AlarLogo extends StatelessWidget {
   final Color? color;
 
   const AlarLogo({
-    Key? key, 
-    this.size = 24, 
+    Key? key,
+    this.size = 24,
     this.isAnimated = false,
     this.color,
   }) : super(key: key);
@@ -26,11 +26,11 @@ class AlarLogo extends StatelessWidget {
       ),
     );
 
-    return isAnimated 
-      ? textWidget
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .shimmer(duration: 3000.ms, color: Colors.white30)
-      : textWidget;
+    return isAnimated
+        ? textWidget
+            .animate(onPlay: (controller) => controller.repeat(reverse: true))
+            .shimmer(duration: 3000.ms, color: Colors.white30)
+        : textWidget;
   }
 }
 
@@ -51,7 +51,10 @@ class AlarFooter extends StatelessWidget {
             "Powered by ",
             style: TextStyle(
               fontSize: isMinimal ? 10 : 12,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.5),
             ),
           ),
           Text(
@@ -60,7 +63,8 @@ class AlarFooter extends StatelessWidget {
               fontSize: isMinimal ? 10 : 12,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.5,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
             ),
           ),
         ],

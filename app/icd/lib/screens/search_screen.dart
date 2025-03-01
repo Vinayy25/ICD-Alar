@@ -118,7 +118,7 @@ class _SearchScreenState extends State<SearchScreen>
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 3),
                           ),
@@ -225,7 +225,7 @@ class _SearchScreenState extends State<SearchScreen>
                             color: Theme.of(context)
                                 .colorScheme
                                 .primary
-                                .withOpacity(0.7),
+                                .withValues(alpha: 0.7),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -461,7 +461,7 @@ class _SearchScreenState extends State<SearchScreen>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: chapterColor.withOpacity(0.1),
+                      color: chapterColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
