@@ -12,9 +12,6 @@ class ChapterDescripton extends StatelessWidget {
       appBar: AppBar(
         title: Text('Chapter Description'),
       ),
-
-      
-  
     );
   }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:icd/widgets/alar.dart';
+import 'package:icd/widgets/chapter_detail_screen/show_code_range.dart';
+import 'package:icd/widgets/chapter_detail_screen/show_code_section.dart';
+import 'package:icd/widgets/chapter_detail_screen/subcategories_section.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:animations/animations.dart';
@@ -180,7 +183,6 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                         Clipboard.setData(ClipboardData(
                                 text: _buildCompositeCode(baseCode)))
                             .then((_) {
-                         
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content:
@@ -466,279 +468,17 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                           // Display code prominently if it's a category or chapter
                           if ((isCategory || isChapter) &&
                               data?['code'] != null)
-                            AnimatedBuilder(
-                              animation: _controller,
-                              builder: (context, child) {
-                                return Transform.translate(
-                                  offset: Offset(
-                                    0,
-                                    (1 - _controller.value) * -30,
-                                  ),
-                                  child: Opacity(
-                                    opacity: _controller.value,
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              child: Card(
-                                elevation: 4,
-                                shadowColor: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.3),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        isChapter
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .secondary
-                                            : Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                        isChapter
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .secondary
-                                                .withValues(alpha: 0.8)
-                                            : Theme.of(context)
-                                                .colorScheme
-                                                .primary
-                                                .withValues(alpha: 0.8),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          isChapter
-                                              ? Icons.menu_book
-                                              : Icons.qr_code,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onPrimary,
-                                          size: 28,
-                                        )
-                                            .animate()
-                                            .fadeIn(
-                                                delay: 300.ms, duration: 500.ms)
-                                            .scale(
-                                                delay: 300.ms,
-                                                duration: 500.ms),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Text(
-                                            isChapter
-                                                ? 'Chapter ${data?['code']}'
-                                                : '${data?['code']}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge
-                                                ?.copyWith(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onPrimary,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                          ),
-                                        ),
-
-                                        AlarLogo(
-                                          size: 24,
-                                          isAnimated: true,
-                                        ),
-                                        // Add copy button for disease codes (categories)
-                                        if (isCategory)
-                                          IconButton(
-                                            iconSize: 20,
-                                            icon: Icon(
-                                              Icons.copy,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onPrimary,
-                                            ),
-                                            onPressed: () {
-                                              final code = data?['code'] ?? '';
-                                              // Copy code to clipboard
-                                              Clipboard.setData(
-                                                      ClipboardData(text: code))
-                                                  .then((_) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                        'Code $code copied to clipboard'),
-                                                    behavior: SnackBarBehavior
-                                                        .floating,
-                                                    margin:
-                                                        const EdgeInsets.all(8),
-                                                    duration: const Duration(
-                                                        seconds: 2),
-                                                  ),
-                                                );
-                                              });
-                                            },
-                                          )
-                                              .animate()
-                                              .fadeIn(
-                                                  delay: 600.ms,
-                                                  duration: 500.ms)
-                                              .scale(
-                                                  delay: 600.ms,
-                                                  duration: 300.ms),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            ShowCodeSection(
+                              isChapter: isChapter,
+                              isCategory: isCategory,
+                              data: data,
+                              controller: _controller,
                             )
                           // For the block code card, add a copy button
                           else if (isBlock && data?['codeRange'] != null)
-                            AnimatedBuilder(
-                              animation: _controller,
-                              builder: (context, child) {
-                                return Transform.translate(
-                                  offset: Offset(
-                                    0,
-                                    (1 - _controller.value) * -30,
-                                  ),
-                                  child: Opacity(
-                                    opacity: _controller.value,
-                                    child: child,
-                                  ),
-                                );
-                              },
-                              child: Card(
-                                elevation: 4,
-                                shadowColor: Theme.of(context)
-                                    .colorScheme
-                                    .tertiary
-                                    .withValues(alpha: 0.3),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        Theme.of(context).colorScheme.tertiary,
-                                        Theme.of(context)
-                                            .colorScheme
-                                            .tertiary
-                                            .withValues(alpha: 0.8),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.view_module,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onTertiary,
-                                              size: 28,
-                                            )
-                                                .animate()
-                                                .fadeIn(
-                                                    delay: 300.ms,
-                                                    duration: 500.ms)
-                                                .scale(
-                                                    delay: 300.ms,
-                                                    duration: 500.ms),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(
-                                                'Block: ${data?['blockId'] ?? ''}',
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleLarge
-                                                    ?.copyWith(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onTertiary,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                              ),
-                                            ),
-                                            // Add the copy button
-                                            IconButton(
-                                              icon: Icon(
-                                                Icons.copy,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .onTertiary,
-                                              ),
-                                              onPressed: () {
-                                                final codeRange =
-                                                    data?['codeRange'] ?? '';
-                                                // Copy code range to clipboard
-                                                Clipboard.setData(ClipboardData(
-                                                        text: codeRange))
-                                                    .then((_) {
-                                                  ScaffoldMessenger.of(context)
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                          'Code range $codeRange copied to clipboard'),
-                                                      behavior: SnackBarBehavior
-                                                          .floating,
-                                                      margin:
-                                                          const EdgeInsets.all(
-                                                              8),
-                                                      duration: const Duration(
-                                                          seconds: 2),
-                                                    ),
-                                                  );
-                                                });
-                                              },
-                                            )
-                                                .animate()
-                                                .fadeIn(
-                                                    delay: 600.ms,
-                                                    duration: 500.ms)
-                                                .scale(
-                                                    delay: 600.ms,
-                                                    duration: 300.ms),
-                                          ],
-                                        ),
-                                        if (data?['codeRange'] != null) ...[
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'Code Range: ${data?['codeRange']}',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleMedium
-                                                ?.copyWith(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .onTertiary,
-                                                ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            ShowCodeRange(
+                              data: data,
+                              controller: _controller,
                             ),
 
                           const SizedBox(height: 24),
@@ -786,185 +526,12 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                           // Subcategories section - use different label based on class kind
                           if (data?['child'] != null &&
                               data?['child'] is List) ...[
-                            Text(
-                              isChapter
-                                  ? 'Sections'
-                                  : isBlock
-                                      ? 'Categories'
-                                      : 'Subcategories',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ).animate().fadeIn(delay: 450.ms),
-                            const SizedBox(height: 12),
-                            ...List.generate(
-                              chapters.isLoading
-                                  ? 5
-                                  : List<String>.from(data?['child'] ?? [])
-                                      .length,
-                              (index) {
-                                if (chapters.isLoading) {
-                                  return _buildSkeletonItem();
-                                }
-
-                                final childUrls =
-                                    List<String>.from(data!['child']);
-                                final childUrl = childUrls[index];
-                                final childData =
-                                    chapters.getDataForUrl(childUrl);
-                                final isChildCategory =
-                                    childData?['classKind'] == 'category';
-
-                                return OpenContainer(
-                                  transitionDuration:
-                                      const Duration(milliseconds: 500),
-                                  openBuilder: (_, __) => ChapterDetailScreen(
-                                    url: childUrl,
-                                    chapterTitle:
-                                        childData?['title']?['@value'] ?? '',
-                                  ),
-                                  closedElevation: 0,
-                                  closedColor: Colors.transparent,
-                                  middleColor:
-                                      Theme.of(context).colorScheme.surface,
-                                  transitionType:
-                                      ContainerTransitionType.fadeThrough,
-                                  closedBuilder: (_, openContainer) => Card(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    elevation: 2,
-                                    shadowColor:
-                                        Colors.black.withValues(alpha: 0.1),
-                                    child: InkWell(
-                                      onTap: openContainer,
-                                      borderRadius: BorderRadius.circular(16),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                          horizontal: 16,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                if (isChildCategory &&
-                                                    childData?['code'] != null)
-                                                  Container(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 5),
-                                                    margin:
-                                                        const EdgeInsets.only(
-                                                            right: 12),
-                                                    decoration: BoxDecoration(
-                                                      gradient: LinearGradient(
-                                                        begin:
-                                                            Alignment.topLeft,
-                                                        end: Alignment
-                                                            .bottomRight,
-                                                        colors: [
-                                                          Theme.of(context)
-                                                              .colorScheme
-                                                              .primary,
-                                                          Theme.of(context)
-                                                              .colorScheme
-                                                              .primary
-                                                              .withValues(
-                                                                  alpha: 0.8),
-                                                        ],
-                                                      ),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color:
-                                                              Theme.of(context)
-                                                                  .colorScheme
-                                                                  .primary
-                                                                  .withValues(
-                                                                      alpha:
-                                                                          0.3),
-                                                          blurRadius: 4,
-                                                          offset: const Offset(
-                                                              0, 2),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: Text(
-                                                      childData?['code'] ?? '',
-                                                      style: TextStyle(
-                                                        color: Theme.of(context)
-                                                            .colorScheme
-                                                            .onPrimary,
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                Expanded(
-                                                  child: Text(
-                                                    childData?['title']
-                                                            ?['@value'] ??
-                                                        'Loading...',
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 16,
-                                                    ),
-                                                  ),
-                                                ),
-                                                Icon(
-                                                  Icons.arrow_forward_ios,
-                                                  size: 16,
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .primary,
-                                                ),
-                                              ],
-                                            ),
-                                            if (childData?['definition']
-                                                    ?['@value'] !=
-                                                null) ...[
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                childData!['definition']
-                                                            ['@value']
-                                                        .toString()
-                                                        .startsWith('!markdown')
-                                                    ? 'Contains markdown definition...'
-                                                    : childData['definition']
-                                                        ['@value'],
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  color: Colors.grey.shade600,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                    .animate()
-                                    .fadeIn(
-                                        delay: Duration(
-                                            milliseconds: 1000 + (index * 100)))
-                                    .slideY(
-                                        begin: 0.2,
-                                        end: 0,
-                                        duration: 500.ms,
-                                        curve: Curves.easeOutQuad);
-                              },
-                            ),
-                            const SizedBox(height: 24),
+                            SubcategoriesSection(
+                              data: data,
+                              isChapter: isChapter,
+                              isBlock: isBlock,
+                              chapters: chapters,
+                            )
                           ],
 
                           // Exclusions section - for any class kind with exclusions
@@ -1323,9 +890,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
         Map<String, dynamic>? data = chapters.getDataForUrl(url);
 
         // If not in cache, load it
-        if (data == null) {
-          data = await chapters.loadItemData(url);
-        }
+        data ??= await chapters.loadItemData(url);
 
         if (data != null) {
           results.add({
@@ -1339,78 +904,5 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     }
 
     return results;
-  }
-
-  Widget _buildSkeletonItem() {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      elevation: 2,
-      shadowColor: Colors.black.withValues(alpha: 0.1),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: 12,
-          horizontal: 16,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  width: 60,
-                  height: 24,
-                ),
-                Expanded(
-                  child: Container(
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              height: 12,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              height: 12,
-              width: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
