@@ -449,9 +449,9 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                                   const SizedBox(height: 16),
                                   Text('Name: Vinayachandra'),
                                   const SizedBox(height: 12),
-                                  Wrap(
+                                  Row(
                                     crossAxisAlignment:
-                                        WrapCrossAlignment.center,
+                                        CrossAxisAlignment.center,
                                     children: [
                                       const Icon(Icons.email, size: 16),
                                       const SizedBox(width: 8),
@@ -468,13 +468,15 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                                     ],
                                   ),
                                   const SizedBox(height: 12),
+                                  // Change this
                                   Wrap(
                                     crossAxisAlignment:
                                         WrapCrossAlignment.center,
                                     children: [
                                       const Icon(Icons.phone, size: 16),
                                       const SizedBox(width: 8),
-                                      SelectableText('7996336041'),
+                                      SelectableText(
+                                          '7996336041'), // No Flexible here, which is good
                                     ],
                                   ),
                                   const SizedBox(height: 16),
