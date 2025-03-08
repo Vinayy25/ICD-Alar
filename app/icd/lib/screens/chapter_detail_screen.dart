@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:icd/screens/clipboard.dart';
 import 'package:icd/widgets/alar.dart';
 import 'package:icd/widgets/chapter_detail_screen/show_code_range.dart';
 import 'package:icd/widgets/chapter_detail_screen/show_code_section.dart';
@@ -180,6 +181,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                     IconButton(
                       icon: Icon(Icons.copy, size: 20),
                       onPressed: () {
+                        
                         Clipboard.setData(ClipboardData(
                                 text: _buildCompositeCode(baseCode)))
                             .then((_) {

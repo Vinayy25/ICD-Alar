@@ -5,6 +5,7 @@ import 'package:flutter_advanced_drawer/flutter_advanced_drawer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:icd/firebase_options.dart';
 import 'package:icd/screens/auth_screen.dart';
+import 'package:icd/screens/clipboard.dart';
 import 'package:icd/screens/contribute_to_developer.dart';
 import 'package:icd/screens/feedback_screen.dart';
 import 'package:icd/screens/search_screen.dart';
@@ -702,7 +703,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
             }
             // Display chapters list
             return MainScreenChapterListview(
-              chapters: chapters ,
+              chapters: chapters,
             );
           },
         ),
@@ -726,13 +727,13 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      index == 0 ? Icons.home : Icons.person,
+                      index == 0 ? Icons.home : Icons.file_copy_outlined,
                       size: 24,
                       color: color,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      index == 0 ? "Home" : "Feedback",
+                      index == 0 ? "Home" : "Clipboard",
                       style: TextStyle(
                         color: color,
                         fontSize: 12,
@@ -756,7 +757,7 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                     break;
                   case 1: // feedback
                     Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => FeedbackScreen()));
+                        builder: (context) => ClipboardScreen()));
                     break;
                 }
               },

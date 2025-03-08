@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:icd/screens/clipboard.dart';
 import 'package:icd/widgets/alar.dart';
 
 class ShowCodeSection extends StatelessWidget {
@@ -115,6 +116,7 @@ class ShowCodeSection extends StatelessWidget {
                                             ),
                                             onPressed: () {
                                               final code = data?['code'] ?? '';
+                                              context.saveToClipboardHistory(code: code, description: data?['description'] ?? '');
                                               // Copy code to clipboard
                                               Clipboard.setData(
                                                       ClipboardData(text: code))

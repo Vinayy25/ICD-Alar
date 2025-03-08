@@ -35,7 +35,7 @@ dependencies:
   flutter_markdown: ^0.7.6+2
   animations: ^2.0.7
   lottie: ^2.6.0
-  flutter_animate: ^4.2.0
+  flutter_animate: ^4.5.2
   flutter_advanced_drawer: ^1.4.0
   animated_bottom_navigation_bar: ^1.4.0
   html: ^0.15.1
@@ -47,6 +47,8 @@ dependencies:
   icons_launcher: ^3.0.0
   change_app_package_name: ^1.5.0
   razorpay_flutter: ^1.4.0
+  share_plus: ^10.1.4
+  intl: ^0.20.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
