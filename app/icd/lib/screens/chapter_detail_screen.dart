@@ -7,7 +7,6 @@ import 'package:icd/widgets/chapter_detail_screen/show_code_section.dart';
 import 'package:icd/widgets/chapter_detail_screen/subcategories_section.dart';
 import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:animations/animations.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../state/chapters_state.dart';
 import 'package:flutter/services.dart';
@@ -35,6 +34,11 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
   Map<String, String> _entityLabels =
       {}; // To store entity ID -> label mappings
 
+  // Add these properties to your state class
+  Map<String, Map<String, dynamic>> _entityCache = {}; // Cache entity data
+  Map<String, bool> _loadingEntities = {}; // Track loading status
+  bool _isLoadingAnyEntity = false; // Overall loading flag
+
   @override
   void initState() {
     super.initState();
@@ -43,9 +47,11 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
       duration: const Duration(milliseconds: 800),
     );
 
-    // Clear selected post-coordination codes
+    // Clear caches
     _selectedPostCoordinationCodes = [];
     _entityLabels = {};
+    _entityCache = {};
+    _loadingEntities = {};
 
     // Start animations after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -181,7 +187,11 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                     IconButton(
                       icon: Icon(Icons.copy, size: 20),
                       onPressed: () {
-                        
+                        context.saveToClipboardHistory(
+                            code: _buildCompositeCode(baseCode),
+                            description: _selectedPostCoordinationCodes
+                                .map((url) => _entityLabels[url])
+                                .join(' '));
                         Clipboard.setData(ClipboardData(
                                 text: _buildCompositeCode(baseCode)))
                             .then((_) {
@@ -212,16 +222,33 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _selectedPostCoordinationCodes.map((code) {
+                    children: _selectedPostCoordinationCodes.map((url) {
+                      final entityData = _entityCache[url];
+                      final code = entityData?['code'] ?? '...';
+                      final title =
+                          entityData?['title']?['@value'] ?? 'Loading...';
+
                       return Chip(
+                        avatar: CircleAvatar(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          child: Text(
+                            code.length > 2 ? code.substring(0, 2) : code,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                         label: Text(
-                          _entityLabels[code] ?? code,
+                          title,
                           style: TextStyle(fontSize: 12),
                         ),
                         deleteIcon: Icon(Icons.close, size: 16),
                         onDeleted: () {
                           setState(() {
-                            _selectedPostCoordinationCodes.remove(code);
+                            _selectedPostCoordinationCodes.remove(url);
                           });
                         },
                       );
@@ -306,33 +333,71 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                     // Implement filtering logic here
                   ),
                 ),
+                // For large lists, add a "Load all" button
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Set loading state for all entities
+                    setState(() {
+                      for (final url in entities) {
+                        if (!_entityCache.containsKey(url)) {
+                          _loadingEntities[url] = true;
+                        }
+                      }
+                      _isLoadingAnyEntity = true;
+                    });
+
+                    // Load all entities for this axis
+                    _loadEntitiesForScale(entities);
+                  },
+                  icon: const Icon(Icons.download, size: 16),
+                  label: Text("Load all ${entities.length} options"),
+                  style: ElevatedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+                const SizedBox(height: 12),
               ],
 
               const SizedBox(height: 8),
 
-              // Entity list
-              ...entities.map((entity) {
-                final entityCode = _extractEntityCode(entity);
-                // In a real app, you'd fetch these labels from API
-                final label =
-                    "Vibrio cholerae code"; // This would be replaced with actual data
-                _entityLabels[entityCode] = label; // Store for later use
+              // Entity list with proper data display
+              ...entities.map((entityUrl) {
+                // Start loading if not already loaded
+                if (!_entityCache.containsKey(entityUrl) &&
+                    _loadingEntities[entityUrl] != true) {
+                  // Schedule loading after build
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _loadEntityData(entityUrl);
+                  });
+                }
+
+                final isLoading = _loadingEntities[entityUrl] == true;
+                final entityData = _entityCache[entityUrl];
+
+                final entityCode = entityData?['code'] ?? '...';
+                final entityTitle = entityData?['title']?['@value'] ??
+                    (isLoading ? 'Loading...' : 'Unknown');
 
                 final isSelected =
-                    _selectedPostCoordinationCodes.contains(entityCode);
+                    _selectedPostCoordinationCodes.contains(entityUrl);
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4.0),
                   child: InkWell(
-                    onTap: () {
-                      setState(() {
-                        if (isSelected) {
-                          _selectedPostCoordinationCodes.remove(entityCode);
-                        } else {
-                          _selectedPostCoordinationCodes.add(entityCode);
-                        }
-                      });
-                    },
+                    onTap: isLoading
+                        ? null
+                        : () {
+                            setState(() {
+                              if (isSelected) {
+                                _selectedPostCoordinationCodes
+                                    .remove(entityUrl);
+                              } else {
+                                _selectedPostCoordinationCodes.add(entityUrl);
+                              }
+                            });
+                          },
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4.0),
@@ -340,44 +405,62 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                         children: [
                           SizedBox(
                             width: 24,
-                            child: isSelected
-                                ? Icon(
-                                    Icons.check_box,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    size: 20,
-                                  )
-                                : Icon(
-                                    Icons.check_box_outline_blank,
-                                    color: Colors.grey,
-                                    size: 20,
-                                  ),
+                            child: isLoading
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : isSelected
+                                    ? Icon(
+                                        Icons.check_box,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        size: 20,
+                                      )
+                                    : Icon(
+                                        Icons.check_box_outline_blank,
+                                        color: Colors.grey,
+                                        size: 20,
+                                      ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                children: [
-                                  TextSpan(
-                                    text: entityCode,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
+                            child: isLoading
+                                ? Container(
+                                    height: 16,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(4),
+                                      color: Colors.grey.shade200,
+                                    ),
+                                  )
+                                : RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(
+                                          text: entityCode,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: " $entityTitle",
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(context).brightness ==
+                                                        Brightness.dark
+                                                    ? Colors.white
+                                                    : Colors.black,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  TextSpan(
-                                    text: " $label",
-                                    style: TextStyle(
-                                      color: Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? Colors.white
-                                          : Colors.black,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
                         ],
                       ),
@@ -400,21 +483,26 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
   String _buildCompositeCode(String baseCode) {
     if (_selectedPostCoordinationCodes.isEmpty) return baseCode;
 
-    // Group by axis (in a real app, you'd track which axis each code belongs to)
-    // For this example, we'll just assume first code is from first axis
     String result = baseCode;
 
+    // Sort selection by axis
+    final selectedUrls = List<String>.from(_selectedPostCoordinationCodes);
+
     // Add first code with &
-    if (_selectedPostCoordinationCodes.isNotEmpty) {
-      result += "&${_selectedPostCoordinationCodes[0]}";
+    if (selectedUrls.isNotEmpty) {
+      final firstUrl = selectedUrls[0];
+      final firstCode =
+          _entityCache[firstUrl]?['code'] ?? firstUrl.split('/').last;
+      result += "&$firstCode";
     }
 
     // Add subsequent codes with /
-    if (_selectedPostCoordinationCodes.length > 1) {
-      result += _selectedPostCoordinationCodes
-          .sublist(1)
-          .map((code) => "/$code")
-          .join("");
+    if (selectedUrls.length > 1) {
+      for (int i = 1; i < selectedUrls.length; i++) {
+        final url = selectedUrls[i];
+        final code = _entityCache[url]?['code'] ?? url.split('/').last;
+        result += "/$code";
+      }
     }
 
     return result;
@@ -906,5 +994,61 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     }
 
     return results;
+  }
+
+  // Add this method to fetch entity data
+  Future<void> _loadEntityData(String entityUrl,
+      {bool forceRefresh = false}) async {
+    if (!forceRefresh && _entityCache.containsKey(entityUrl)) {
+      return; // Already loaded
+    }
+
+    setState(() {
+      _loadingEntities[entityUrl] = true;
+      _isLoadingAnyEntity = true;
+    });
+
+    try {
+      final chapters = Provider.of<Chapters>(context, listen: false);
+      // First check if data exists in chapters cache
+      Map<String, dynamic>? data = chapters.getDataForUrl(entityUrl);
+
+      // If not in cache, load it
+      if (data == null) {
+        data = await chapters.loadItemData(entityUrl);
+      }
+
+      if (data != null) {
+        setState(() {
+          _entityCache[entityUrl] = data!;
+          // Update entity labels map
+          final code = data['code'] ?? '';
+          final title = data['title']?['@value'] ?? 'Unknown';
+          _entityLabels[entityUrl] = '$code - $title';
+        });
+      }
+    } catch (e) {
+      print('Error loading entity data for $entityUrl: $e');
+    } finally {
+      setState(() {
+        _loadingEntities[entityUrl] = false;
+        _isLoadingAnyEntity =
+            _loadingEntities.values.any((isLoading) => isLoading);
+      });
+    }
+  }
+
+  // Add this method to load entities for a scale
+  Future<void> _loadEntitiesForScale(List<String> entityUrls) async {
+    // Load all entities in parallel with a limit
+    final batches = <List<String>>[];
+    for (var i = 0; i < entityUrls.length; i += 5) {
+      final end = (i + 5 < entityUrls.length) ? i + 5 : entityUrls.length;
+      batches.add(entityUrls.sublist(i, end));
+    }
+
+    for (final batch in batches) {
+      await Future.wait(batch.map((url) => _loadEntityData(url)));
+    }
   }
 }

@@ -213,7 +213,8 @@ class _ContributeToDeveloperState extends State<ContributeToDeveloper> {
                         child: Text(
                           'Your contribution helps us maintain and improve this free ICD-11 reference app',
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.7),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -277,7 +278,8 @@ class _ContributeToDeveloperState extends State<ContributeToDeveloper> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   elevation: 0,
-                  color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+                  color:
+                      theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -365,7 +367,7 @@ class _ContributeToDeveloperState extends State<ContributeToDeveloper> {
                                     'Developer',
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       color: theme.colorScheme.onSurface
-                                          .withOpacity(0.7),
+                                          .withValues(alpha: 0.7),
                                     ),
                                   ),
                                 ],
@@ -408,7 +410,7 @@ class _ContributeToDeveloperState extends State<ContributeToDeveloper> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                       spreadRadius: 0,
@@ -419,8 +421,8 @@ class _ContributeToDeveloperState extends State<ContributeToDeveloper> {
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: _isLoading ? null : _startRazorpayPayment,
-                    splashColor: Colors.white.withOpacity(0.1),
-                    highlightColor: Colors.white.withOpacity(0.05),
+                    splashColor: Colors.white.withValues(alpha: 0.1),
+                    highlightColor: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(16),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -551,12 +553,12 @@ class _ContributeToDeveloperState extends State<ContributeToDeveloper> {
         decoration: BoxDecoration(
           color: isSelected
               ? theme.colorScheme.primary
-              : theme.colorScheme.surfaceVariant.withOpacity(0.5),
+              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withOpacity(0.3),
+                : theme.colorScheme.outline.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),

@@ -1,93 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:icd/models/clipboard_model.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
-import 'dart:convert';
-
-class ClipboardItem {
-  final String code;
-  final String description;
-  final DateTime timestamp;
-  final String? category;
-
-  ClipboardItem({
-    required this.code,
-    required this.description,
-    required this.timestamp,
-    this.category,
-  });
-
-  // Convert to JSON
-  Map<String, dynamic> toJson() => {
-        'code': code,
-        'description': description,
-        'timestamp': timestamp.toIso8601String(),
-        'category': category,
-      };
-
-  // Create from JSON
-  factory ClipboardItem.fromJson(Map<String, dynamic> json) {
-    return ClipboardItem(
-      code: json['code'],
-      description: json['description'],
-      timestamp: DateTime.parse(json['timestamp']),
-      category: json['category'],
-    );
-  }
-}
-
-class ClipboardService {
-  static const _storageKey = 'clipboard_items';
-
-  // Add an item to clipboard
-  static Future<void> addItem(ClipboardItem item) async {
-    final prefs = await SharedPreferences.getInstance();
-    final items = await getItems();
-
-    // Check if item already exists to prevent duplicates
-    if (!items.any((existing) => existing.code == item.code)) {
-      items.add(item);
-      final jsonList = items.map((item) => jsonEncode(item.toJson())).toList();
-      await prefs.setStringList(_storageKey, jsonList);
-    }
-  }
-
-  // Get all items
-  static Future<List<ClipboardItem>> getItems() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonList = prefs.getStringList(_storageKey) ?? [];
-
-    return jsonList
-        .map((json) {
-          try {
-            return ClipboardItem.fromJson(jsonDecode(json));
-          } catch (e) {
-            print('Error parsing clipboard item: $e');
-            return null;
-          }
-        })
-        .whereType<ClipboardItem>()
-        .toList();
-  }
-
-  // Remove an item
-  static Future<void> removeItem(String code) async {
-    final prefs = await SharedPreferences.getInstance();
-    final items = await getItems();
-    items.removeWhere((item) => item.code == code);
-
-    final jsonList = items.map((item) => jsonEncode(item.toJson())).toList();
-    await prefs.setStringList(_storageKey, jsonList);
-  }
-
-  // Clear all items
-  static Future<void> clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_storageKey);
-  }
-}
 
 class ClipboardScreen extends StatefulWidget {
   const ClipboardScreen({super.key});
@@ -103,6 +19,8 @@ class _ClipboardScreenState extends State<ClipboardScreen>
   bool _isLoading = true;
   bool _isSearching = false;
   String _searchQuery = '';
+  bool _isSelectionMode = false;
+  Set<String> _selectedCodes = {}; // Track selected codes
   late final AnimationController _animationController;
   final TextEditingController _searchController = TextEditingController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -239,6 +157,32 @@ class _ClipboardScreenState extends State<ClipboardScreen>
     );
   }
 
+  Future<void> _shareSelectedCodes() async {
+    if (_selectedCodes.isEmpty) {
+      _showSnackBar('No codes selected');
+      return;
+    }
+
+    final selectedItems = _filteredItems
+        .where((item) => _selectedCodes.contains(item.code))
+        .toList();
+
+    final formattedText = selectedItems.map((item) {
+      return '${item.code} - ${item.description}';
+    }).join('\n');
+
+    await Share.share(
+      'ICD-11 Codes:\n\n$formattedText',
+      subject: 'ICD-11 Codes from ALAR ICD App',
+    );
+
+    // Exit selection mode after sharing
+    setState(() {
+      _isSelectionMode = false;
+      _selectedCodes.clear();
+    });
+  }
+
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -275,6 +219,29 @@ class _ClipboardScreenState extends State<ClipboardScreen>
     } else {
       _animationController.reverse();
     }
+  }
+
+  void _toggleSelectionMode() {
+    setState(() {
+      _isSelectionMode = !_isSelectionMode;
+      if (!_isSelectionMode) {
+        _selectedCodes.clear();
+      }
+    });
+  }
+
+  void _toggleItemSelection(String code) {
+    setState(() {
+      if (_selectedCodes.contains(code)) {
+        _selectedCodes.remove(code);
+        // Exit selection mode if no items selected
+        if (_selectedCodes.isEmpty) {
+          _isSelectionMode = false;
+        }
+      } else {
+        _selectedCodes.add(code);
+      }
+    });
   }
 
   String _formatDate(DateTime date) {
@@ -384,98 +351,170 @@ class _ClipboardScreenState extends State<ClipboardScreen>
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: theme.colorScheme.outline.withOpacity(0.1),
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () async {
-            await Clipboard.setData(
-                ClipboardData(text: '${item.code} - ${item.description}'));
-            _showSnackBar('Code copied to clipboard');
+            if (_isSelectionMode) {
+              _toggleItemSelection(item.code);
+            } else {
+              await Clipboard.setData(
+                  ClipboardData(text: '${item.code} - ${item.description}'));
+              _showSnackBar('Code copied to clipboard');
+            }
           },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          onLongPress: () {
+            if (!_isSelectionMode) {
+              _toggleSelectionMode();
+              _toggleItemSelection(item.code);
+            }
+          },
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        item.code,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSecondaryContainer,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment
+                          .start, // Align to top for better layout
+                      children: [
+                        Expanded(
+                          // Let the code container expand
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Flexible(
+                                // Allows the container to shrink if needed
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.secondaryContainer,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    item.code,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme
+                                          .colorScheme.onSecondaryContainer,
+                                    ),
+                                    overflow: TextOverflow
+                                        .visible, // Allow text to break to next line
+                                    softWrap: true, // Enable text wrapping
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                        // Action buttons - keep these at a fixed position
+                        if (!_isSelectionMode)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.content_copy, size: 18),
+                                onPressed: () async {
+                                  // Ensure code is copied without line breaks
+                                  await Clipboard.setData(ClipboardData(
+                                      text:
+                                          '${item.code} - ${item.description}'));
+                                  _showSnackBar('Code copied to clipboard');
+                                },
+                                tooltip: 'Copy code',
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                color: theme.colorScheme.primary,
+                              ),
+                              const SizedBox(width: 12),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete_outline, size: 18),
+                                onPressed: () => _deleteItem(item.code),
+                                tooltip: 'Remove from clipboard',
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                                color: theme.colorScheme.error,
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.description,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    if (item.category != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.folder_outlined,
+                            size: 14,
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            item.category!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.content_copy, size: 18),
-                      onPressed: () async {
-                        await Clipboard.setData(ClipboardData(
-                            text: '${item.code} - ${item.description}'));
-                        _showSnackBar('Code copied to clipboard');
-                      },
-                      tooltip: 'Copy code',
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 12),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      onPressed: () => _deleteItem(item.code),
-                      tooltip: 'Remove from clipboard',
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(),
-                      padding: EdgeInsets.zero,
-                      color: theme.colorScheme.error,
+                    ],
+                    const SizedBox(height: 4),
+                    Text(
+                      DateFormat('h:mm a').format(item.timestamp),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color:
+                            theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  item.description,
-                  style: theme.textTheme.bodyMedium,
-                ),
-                if (item.category != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.folder_outlined,
-                        size: 14,
-                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+              // Selection indicator
+              if (_isSelectionMode)
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _selectedCodes.contains(item.code)
+                          ? theme.colorScheme.primary
+                          : Colors.transparent,
+                      border: Border.all(
+                        color: _selectedCodes.contains(item.code)
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                        width: 2,
                       ),
-                      const SizedBox(width: 4),
-                      Text(
-                        item.category!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withOpacity(0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('h:mm a').format(item.timestamp),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    fontSize: 12,
+                    ),
+                    child: _selectedCodes.contains(item.code)
+                        ? Icon(
+                            Icons.check,
+                            size: 16,
+                            color: theme.colorScheme.onPrimary,
+                          )
+                        : null,
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
@@ -504,8 +543,8 @@ class _ClipboardScreenState extends State<ClipboardScreen>
                         hintText: 'Search codes or descriptions...',
                         border: InputBorder.none,
                         hintStyle: TextStyle(
-                            color:
-                                theme.colorScheme.onSurface.withOpacity(0.5)),
+                            color: theme.colorScheme.onSurface
+                                .withValues(alpha: 0.5)),
                       ),
                       style: theme.textTheme.titleMedium,
                       onChanged: (value) {
@@ -516,64 +555,105 @@ class _ClipboardScreenState extends State<ClipboardScreen>
                   );
                 },
               )
-            : const Text('Clipboard History'),
+            : _isSelectionMode
+                ? Text('${_selectedCodes.length} selected')
+                : const Text('Clipboard'),
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _toggleSelectionMode,
+              )
+            : null,
         actions: [
-          IconButton(
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: _isSearching
-                  ? const Icon(Icons.close, key: ValueKey('close'))
-                  : const Icon(Icons.search, key: ValueKey('search')),
+          if (!_isSelectionMode) ...[
+            IconButton(
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: _isSearching
+                    ? const Icon(Icons.close, key: ValueKey('close'))
+                    : const Icon(Icons.search, key: ValueKey('search')),
+              ),
+              onPressed: _toggleSearch,
             ),
-            onPressed: _toggleSearch,
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'copy_all':
-                  _copyAllCodes();
-                  break;
-                case 'share':
-                  _shareAllCodes();
-                  break;
-                case 'clear':
-                  _clearAll();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'copy_all',
-                child: Row(
-                  children: [
-                    Icon(Icons.copy_all),
-                    SizedBox(width: 8),
-                    Text('Copy All Codes'),
-                  ],
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              onPressed: _toggleSelectionMode,
+              tooltip: 'Select items',
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                switch (value) {
+                  case 'copy_all':
+                    _copyAllCodes();
+                    break;
+                  case 'share':
+                    _shareAllCodes();
+                    break;
+                  case 'clear':
+                    _clearAll();
+                    break;
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'copy_all',
+                  child: Row(
+                    children: [
+                      Icon(Icons.copy_all),
+                      SizedBox(width: 8),
+                      Text('Copy All Codes'),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'share',
-                child: Row(
-                  children: [
-                    Icon(Icons.share),
-                    SizedBox(width: 8),
-                    Text('Share All Codes'),
-                  ],
+                const PopupMenuItem(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      Icon(Icons.share),
+                      SizedBox(width: 8),
+                      Text('Share All Codes'),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'clear',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_sweep, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Clear All', style: TextStyle(color: Colors.red)),
-                  ],
+                const PopupMenuItem(
+                  value: 'clear',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_sweep, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Clear All', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
+          if (_isSelectionMode) ...[
+            IconButton(
+              icon: const Icon(Icons.share),
+              onPressed: _shareSelectedCodes,
+              tooltip: 'Share selected',
+            ),
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              onPressed: () {
+                setState(() {
+                  if (_selectedCodes.length == _filteredItems.length) {
+                    // Deselect all
+                    _selectedCodes.clear();
+                    _isSelectionMode = false;
+                  } else {
+                    // Select all
+                    _selectedCodes =
+                        _filteredItems.map((item) => item.code).toSet();
+                  }
+                });
+              },
+              tooltip: _selectedCodes.length == _filteredItems.length
+                  ? 'Deselect all'
+                  : 'Select all',
+            ),
+          ],
         ],
       ),
       body: _isLoading
@@ -583,9 +663,19 @@ class _ClipboardScreenState extends State<ClipboardScreen>
         opacity: _filteredItems.isNotEmpty ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 200),
         child: FloatingActionButton.extended(
-          onPressed: _shareAllCodes,
-          icon: const Icon(Icons.share),
-          label: const Text('Share Codes'),
+          onPressed: _isSelectionMode
+              ? _shareSelectedCodes
+              : () => _toggleSelectionMode(),
+          icon: Icon(_isSelectionMode ? Icons.share : Icons.checklist),
+          label: Text(_isSelectionMode
+              ? 'Share ${_selectedCodes.length} selected'
+              : 'Select to Share'),
+          backgroundColor: _isSelectionMode
+              ? Theme.of(context).colorScheme.primaryContainer
+              : null,
+          foregroundColor: _isSelectionMode
+              ? Theme.of(context).colorScheme.onPrimaryContainer
+              : null,
         ),
       ),
     );

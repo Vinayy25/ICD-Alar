@@ -80,13 +80,13 @@ class SubcategoriesSection extends StatelessWidget {
                           end: Alignment.bottomRight,
                           colors: [
                             primaryColor,
-                            primaryColor.withOpacity(0.8),
+                            primaryColor.withValues(alpha: 0.8),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                            color: primaryColor.withOpacity(0.3),
+                            color: primaryColor.withValues(alpha: 0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -132,7 +132,7 @@ class SubcategoriesSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 elevation: 2,
-                shadowColor: Colors.black.withOpacity(0.1),
+                shadowColor: Colors.black.withValues(alpha: 0.1),
                 child: InkWell(
                   onTap: openContainer,
                   borderRadius: BorderRadius.circular(16),
