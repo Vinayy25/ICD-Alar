@@ -8,7 +8,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 
 class ContributeToDeveloper extends StatefulWidget {
   const ContributeToDeveloper({super.key});
-
   @override
   State<ContributeToDeveloper> createState() => _ContributeToDeveloperState();
 }
