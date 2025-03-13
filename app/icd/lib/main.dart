@@ -8,6 +8,7 @@ import 'package:icd/screens/auth_screen.dart';
 import 'package:icd/screens/clipboard.dart';
 import 'package:icd/screens/contribute_to_developer.dart';
 import 'package:icd/screens/feedback_screen.dart';
+import 'package:icd/screens/get_premium.dart';
 import 'package:icd/screens/search_screen.dart';
 import 'package:icd/state/auth_state.dart';
 import 'package:icd/widgets/alar.dart';
@@ -43,7 +44,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ICD-10',
+      title: 'ICD Alar',
       theme: ThemeData(
         colorScheme: ColorScheme.light(
           primary: const Color(0xFF6750A4), // Deep purple
@@ -289,6 +290,19 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   },
                   leading: const Icon(Icons.cleaning_services),
                   title: const Text('Clear Cache'),
+                ),
+                //premium screen
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => GetPremiumScreen()),
+                    );
+                  },
+                  leading: const Icon(Icons.feedback),
+                  title: const Text('Get Premium'),
                 ),
 
                 // Medical Tools Section

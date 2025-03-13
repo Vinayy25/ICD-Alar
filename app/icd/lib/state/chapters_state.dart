@@ -36,20 +36,15 @@ class Chapters extends ChangeNotifier {
         error = null;
       });
 
-      // First check if we have cached root data
-      final prefs = await SharedPreferences.getInstance();
+      // Define the root URL
       final rootUrl = "https://id.who.int/icd/release/11/2025-01/mms";
-      final cachedRoot = prefs.getString(rootUrl);
 
-      Map<String, dynamic> rootData;
+      // IMPORTANT: Always fetch root data from API, never use cache
+      print("Fetching latest data from ICD-11 server...");
+      final rootData = await _httpService.getIcdData(rootUrl);
 
-      if (cachedRoot != null) {
-        rootData = json.decode(cachedRoot);
-      } else {
-        // Fetch root data from API
-        rootData = await _httpService.getIcdData(rootUrl);
-        await prefs.setString(rootUrl, json.encode(rootData));
-      }
+      // Store in memory but DO NOT cache in SharedPreferences
+      hierarchyData[rootUrl] = rootData;
 
       // Check if root has children
       if (rootData['child'] != null && rootData['child'] is List) {
@@ -58,9 +53,6 @@ class Chapters extends ChangeNotifier {
 
         // Store hierarchy relationship
         hierarchyChain[rootUrl] = chapterUrls;
-
-        // Store root data
-        hierarchyData[rootUrl] = rootData;
 
         // Preload each chapter's basic data for names
         await Future.wait(chapterUrls.map((chapterUrl) async {
@@ -160,7 +152,18 @@ class Chapters extends ChangeNotifier {
   // Helper method to load and cache data
   Future<Map<String, dynamic>> _loadAndCacheData(String url) async {
     try {
-      // Check SharedPreferences first
+      final rootUrl = "https://id.who.int/icd/release/11/2025-01/mms";
+
+      // For the root URL, always fetch from network
+      if (url == rootUrl) {
+        final data = await _httpService.getIcdData(url);
+        setState(() {
+          hierarchyData[url] = data;
+        });
+        return data;
+      }
+
+      // For all other URLs, check cache first
       final prefs = await SharedPreferences.getInstance();
       final cachedData = prefs.getString(url);
 
@@ -215,6 +218,14 @@ class Chapters extends ChangeNotifier {
 
   Future<void> saveChapterData(
       String chapterUrl, Map<String, dynamic> data) async {
+    final rootUrl = "https://id.who.int/icd/release/11/2025-01/mms";
+
+    // Skip saving root URL to SharedPreferences
+    if (chapterUrl == rootUrl) {
+      notifyListeners();
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(chapterUrl, json.encode(data));
     notifyListeners();

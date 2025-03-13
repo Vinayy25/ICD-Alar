@@ -897,60 +897,6 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                             ).animate().fadeIn(delay: 700.ms),
                             const SizedBox(height: 24),
                           ],
-
-                          // Metadata sections with staggered animation
-                          if (isCategory) ...[
-                            if (data?['source'] != null) ...[
-                              Text(
-                                'Source',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ).animate().fadeIn(delay: 850.ms),
-                              const SizedBox(height: 8),
-                              Card(
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    data?['source'] ?? 'Loading source...',
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ),
-                              ).animate().fadeIn(delay: 600.ms),
-                              const SizedBox(height: 24),
-                            ],
-                            if (data?['browserUrl'] != null) ...[
-                              Text(
-                                'Reference Link',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ).animate().fadeIn(delay: 950.ms),
-                              const SizedBox(height: 8),
-                              Card(
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    data?['browserUrl'] ?? 'Loading URL...',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: Colors.blue.shade700,
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                  ),
-                                ),
-                              ).animate().fadeIn(delay: 800.ms),
-                              const SizedBox(height: 24),
-                            ],
-                          ],
-
                           // Post-Coordination Scales section
                           _buildPostCoordinationScales(context, data),
                         ],
