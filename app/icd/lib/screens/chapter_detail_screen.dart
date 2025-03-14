@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:icd/screens/clipboard.dart';
 import 'package:icd/widgets/alar.dart';
+import 'package:icd/widgets/chapter_detail_screen/expandable_defination.dart';
+import 'package:icd/widgets/chapter_detail_screen/post_coordination.dart';
 import 'package:icd/widgets/chapter_detail_screen/show_code_range.dart';
 import 'package:icd/widgets/chapter_detail_screen/show_code_section.dart';
 import 'package:icd/widgets/chapter_detail_screen/subcategories_section.dart';
@@ -66,45 +67,6 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     super.dispose();
   }
 
-  // Add this helper method to render definition content based on format
-  Widget _buildDefinitionWidget(BuildContext context, String? definitionText) {
-    if (definitionText == null) {
-      return Text('No definition available');
-    }
-
-    // Check if the definition is in markdown format
-    if (definitionText.trim().startsWith('!markdown')) {
-      // Remove the !markdown marker and render as markdown
-      final markdownContent =
-          definitionText.replaceFirst('!markdown', '').trim();
-      return MarkdownBody(
-        data: markdownContent,
-        styleSheet: MarkdownStyleSheet(
-          p: Theme.of(context).textTheme.bodyMedium,
-          h1: Theme.of(context).textTheme.headlineSmall,
-          h2: Theme.of(context).textTheme.titleLarge,
-          h3: Theme.of(context).textTheme.titleMedium,
-          strong: const TextStyle(fontWeight: FontWeight.bold),
-          em: const TextStyle(fontStyle: FontStyle.italic),
-          blockquote: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade700,
-                fontStyle: FontStyle.italic,
-              ),
-          code: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontFamily: 'monospace',
-                backgroundColor: Colors.grey.shade200,
-              ),
-        ),
-      );
-    }
-
-    // Regular text definition
-    return Text(
-      definitionText,
-      style: Theme.of(context).textTheme.bodyMedium,
-    );
-  }
-
   // Add this helper method to extract the axis display name
   String _getAxisDisplayName(String axisName) {
     // Extract the last part after the last slash
@@ -117,12 +79,6 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
 
     // Capitalize first letter
     return name[0].toUpperCase() + name.substring(1);
-  }
-
-  // Add this helper method to extract the entity code from a URL
-  String _extractEntityCode(String entityUrl) {
-    final parts = entityUrl.split('/');
-    return parts.last.contains('unspecified') ? 'unspecified' : parts.last;
   }
 
   // Add this new widget to display post-coordination scales
@@ -185,7 +141,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.copy, size: 20),
+                      icon: const Icon(Icons.copy, size: 20),
                       onPressed: () {
                         context.saveToClipboardHistory(
                             code: _buildCompositeCode(baseCode),
@@ -196,18 +152,18 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                                 text: _buildCompositeCode(baseCode)))
                             .then((_) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
+                            const SnackBar(
                               content:
                                   Text('Combined code copied to clipboard'),
                               behavior: SnackBarBehavior.floating,
-                              duration: const Duration(seconds: 1),
+                              duration: Duration(seconds: 1),
                             ),
                           );
                         });
                       },
                     ),
                     IconButton(
-                      icon: Icon(Icons.clear_all, size: 20),
+                      icon: const Icon(Icons.clear_all, size: 20),
                       onPressed: () {
                         setState(() {
                           _selectedPostCoordinationCodes.clear();
@@ -218,42 +174,6 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                 ),
 
                 // Display selected codes with remove option
-                if (_selectedPostCoordinationCodes.isNotEmpty)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _selectedPostCoordinationCodes.map((url) {
-                      final entityData = _entityCache[url];
-                      final code = entityData?['code'] ?? '...';
-                      final title =
-                          entityData?['title']?['@value'] ?? 'Loading...';
-
-                      return Chip(
-                        avatar: CircleAvatar(
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primary,
-                          child: Text(
-                            code.length > 2 ? code.substring(0, 2) : code,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        label: Text(
-                          title,
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        deleteIcon: Icon(Icons.close, size: 16),
-                        onDeleted: () {
-                          setState(() {
-                            _selectedPostCoordinationCodes.remove(url);
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
               ],
             ),
           ),
@@ -261,36 +181,16 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
         const SizedBox(height: 24),
 
         // Post-coordination section header
-        Row(
-          children: [
-            Text(
-              'Post-coordination',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '?',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ],
-        ),
+        PostCoordiantionGuide(),
 
         const SizedBox(height: 16),
 
         // Each scale section
         ...scales.asMap().entries.map((entry) {
-          final index = entry.key;
           final scale = entry.value;
           final axisNameUrl = scale['axisName'] as String;
           final axisName = _getAxisDisplayName(axisNameUrl);
           final required = scale['requiredPostcoordination'] == 'true';
-          final allowMultiple = scale['allowMultipleValues'] == 'AllowAlways';
           final entities = List<String>.from(scale['scaleEntity'] ?? []);
 
           // Create description based on required and allowMultiple
@@ -305,12 +205,38 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Axis name and description
-              Text(
-                "$axisName $description",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.primary,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      "$axisName $description",
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                     ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      scale['allowMultipleValues'] == 'AllowAlways'
+                          ? "Multiple allowed"
+                          : "Single selection",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               if (entities.length > 8) ...[
@@ -376,27 +302,24 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                 final isLoading = _loadingEntities[entityUrl] == true;
                 final entityData = _entityCache[entityUrl];
 
-                final entityCode = entityData?['code'] ?? '...';
+                final entityCode = entityData?['code'] ?? '';
+                final hasCode = entityCode.isNotEmpty;
+
                 final entityTitle = entityData?['title']?['@value'] ??
                     (isLoading ? 'Loading...' : 'Unknown');
 
                 final isSelected =
                     _selectedPostCoordinationCodes.contains(entityUrl);
+                final allowMultiple =
+                    scale['allowMultipleValues'] == 'AllowAlways';
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 4.0),
                   child: InkWell(
-                    onTap: isLoading
+                    onTap: isLoading || !hasCode
                         ? null
                         : () {
-                            setState(() {
-                              if (isSelected) {
-                                _selectedPostCoordinationCodes
-                                    .remove(entityUrl);
-                              } else {
-                                _selectedPostCoordinationCodes.add(entityUrl);
-                              }
-                            });
+                            _toggleEntitySelection(entityUrl, scale);
                           },
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
@@ -406,21 +329,31 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                           SizedBox(
                             width: 24,
                             child: isLoading
-                                ? SizedBox(
+                                ? const SizedBox(
                                     width: 18,
                                     height: 18,
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2))
-                                : isSelected
-                                    ? Icon(
-                                        Icons.check_box,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary,
-                                        size: 20,
-                                      )
-                                    : Icon(
-                                        Icons.check_box_outline_blank,
+                                : hasCode
+                                    ? isSelected
+                                        ? Icon(
+                                            allowMultiple
+                                                ? Icons.check_box
+                                                : Icons.radio_button_checked,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                            size: 20,
+                                          )
+                                        : Icon(
+                                            allowMultiple
+                                                ? Icons.check_box_outline_blank
+                                                : Icons.radio_button_unchecked,
+                                            color: Colors.grey,
+                                            size: 20,
+                                          )
+                                    : const Icon(
+                                        Icons.info_outline,
                                         color: Colors.grey,
                                         size: 20,
                                       ),
@@ -428,34 +361,39 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                           const SizedBox(width: 8),
                           Expanded(
                             child: isLoading
-                                ? Container(
+                                ? buildSkeletonLoader(
                                     height: 16,
                                     width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(4),
-                                      color: Colors.grey.shade200,
-                                    ),
+                                    borderRadius: BorderRadius.circular(4),
                                   )
                                 : RichText(
                                     text: TextSpan(
                                       children: [
                                         TextSpan(
-                                          text: entityCode,
+                                          text: hasCode
+                                              ? entityCode
+                                              : '(No code) ',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
+                                            color: hasCode
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : Colors.grey,
                                           ),
                                         ),
                                         TextSpan(
-                                          text: " $entityTitle",
+                                          text: hasCode
+                                              ? " $entityTitle"
+                                              : entityTitle,
                                           style: TextStyle(
-                                            color:
-                                                Theme.of(context).brightness ==
+                                            color: hasCode
+                                                ? Theme.of(context)
+                                                            .brightness ==
                                                         Brightness.dark
                                                     ? Colors.white
-                                                    : Colors.black,
+                                                    : Colors.black
+                                                : Colors.grey,
                                           ),
                                         ),
                                       ],
@@ -479,33 +417,55 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     );
   }
 
-  // Helper method to build composite code string
   String _buildCompositeCode(String baseCode) {
     if (_selectedPostCoordinationCodes.isEmpty) return baseCode;
 
     String result = baseCode;
 
-    // Sort selection by axis
-    final selectedUrls = List<String>.from(_selectedPostCoordinationCodes);
+    // Process each selected code
+    for (final url in _selectedPostCoordinationCodes) {
+      final entityData = _entityCache[url];
+      final code = entityData?['code'] ?? '';
 
-    // Add first code with &
-    if (selectedUrls.isNotEmpty) {
-      final firstUrl = selectedUrls[0];
-      final firstCode =
-          _entityCache[firstUrl]?['code'] ?? firstUrl.split('/').last;
-      result += "&$firstCode";
-    }
+      // Skip if no code is available
+      if (code.isEmpty) continue;
 
-    // Add subsequent codes with /
-    if (selectedUrls.length > 1) {
-      for (int i = 1; i < selectedUrls.length; i++) {
-        final url = selectedUrls[i];
-        final code = _entityCache[url]?['code'] ?? url.split('/').last;
+      // Use & if the code starts with X, else use /
+      if (code.startsWith('X')) {
+        result += "&$code";
+      } else {
         result += "/$code";
       }
     }
 
     return result;
+  }
+
+  void _toggleEntitySelection(String entityUrl, Map<String, dynamic> scale) {
+    final allowMultiple = scale['allowMultipleValues'] == 'AllowAlways';
+    final entityData = _entityCache[entityUrl];
+    final hasCode = entityData?['code'] != null &&
+        (entityData?['code'] as String).isNotEmpty;
+
+    // Don't allow selection if no code is available
+    if (!hasCode) return;
+
+    setState(() {
+      if (_selectedPostCoordinationCodes.contains(entityUrl)) {
+        // Remove selection
+        _selectedPostCoordinationCodes.remove(entityUrl);
+      } else {
+        // If multiple selections not allowed, remove any existing selection from this scale
+        if (!allowMultiple) {
+          final scaleEntities = List<String>.from(scale['scaleEntity'] ?? []);
+          _selectedPostCoordinationCodes
+              .removeWhere((url) => scaleEntities.contains(url));
+        }
+
+        // Add the new selection
+        _selectedPostCoordinationCodes.add(entityUrl);
+      }
+    });
   }
 
   @override
@@ -587,22 +547,13 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                             Text(
                               isBlock ? 'Description' : 'Definition',
                               style: Theme.of(context).textTheme.titleLarge,
+                              overflow: TextOverflow.ellipsis,
                             ).animate().fadeIn(delay: 300.ms).moveY(
                                 begin: 10, end: 0, curve: Curves.easeOutQuad),
                             const SizedBox(height: 8),
-                            Card(
-                              elevation: 2,
-                              shadowColor: Colors.black.withValues(alpha: 0.1),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: _buildDefinitionWidget(
-                                  context,
-                                  data?['definition']?['@value'],
-                                ),
-                              ),
+                            ExpandableDefinition(
+                              definitionText: data?['definition']?['@value'],
+                              parentContext: context,
                             )
                                 .animate()
                                 .fadeIn(delay: 400.ms, duration: 800.ms)
@@ -914,6 +865,23 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     );
   }
 
+  Widget buildSkeletonLoader({
+    required double height,
+    required double width,
+    BorderRadius? borderRadius,
+  }) {
+    return Container(
+      height: height,
+      width: width,
+      decoration: BoxDecoration(
+        borderRadius: borderRadius ?? BorderRadius.circular(4),
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey.shade800.withOpacity(0.6)
+            : Colors.grey.shade300,
+      ),
+    );
+  }
+
   // Helper method to load related items for perinatal chapter
   Future<List<Map<String, dynamic>>> _loadPerinatalRelatedItems(
       BuildContext context, List<dynamic> urls) async {
@@ -960,9 +928,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
       Map<String, dynamic>? data = chapters.getDataForUrl(entityUrl);
 
       // If not in cache, load it
-      if (data == null) {
-        data = await chapters.loadItemData(entityUrl);
-      }
+      data ??= await chapters.loadItemData(entityUrl);
 
       if (data != null) {
         setState(() {

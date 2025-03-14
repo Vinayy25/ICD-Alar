@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:icd/models/clipboard_model.dart';
+import 'package:icd/widgets/clipboard/expandable_description.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -447,10 +448,13 @@ class _ClipboardScreenState extends State<ClipboardScreen>
                           ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      item.description,
-                      style: theme.textTheme.bodyMedium,
+                   const SizedBox(height: 8),
+                    ExpandableDescription(
+                      text: item.description,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        height: 1.4, // Better line spacing
+                        letterSpacing: 0.2, // Slightly improved letter spacing
+                      ),
                     ),
                     if (item.category != null) ...[
                       const SizedBox(height: 8),
