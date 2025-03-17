@@ -152,7 +152,7 @@ class PostCoordiantionGuide extends StatelessWidget {
                       backgroundColor: Theme.of(context)
                           .colorScheme
                           .surfaceVariant
-                          .withOpacity(0.8),
+                          .withValues(alpha: 0.8),
                     ),
                   ),
                 ),
@@ -193,7 +193,10 @@ class PostCoordiantionGuide extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.3),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),

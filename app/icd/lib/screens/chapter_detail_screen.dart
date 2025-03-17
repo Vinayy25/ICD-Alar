@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:icd/screens/clipboard.dart';
 import 'package:icd/widgets/alar.dart';
@@ -29,7 +30,7 @@ class ChapterDetailScreen extends StatefulWidget {
 class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-
+  bool _isDisposed = false;
   // Add these to your class state variables
   List<String> _selectedPostCoordinationCodes = [];
   Map<String, String> _entityLabels =
@@ -39,13 +40,17 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
   Map<String, Map<String, dynamic>> _entityCache = {}; // Cache entity data
   Map<String, bool> _loadingEntities = {}; // Track loading status
   bool _isLoadingAnyEntity = false; // Overall loading flag
+  // Add these properties to your _ChapterDetailScreenState class
+  Map<String, bool> _entityHasChildren = {}; // Track if entity has children
+  Map<String, bool> _expandedEntities = {}; // Track expanded state
+  Map<String, List<String>> _entityChildrenUrls = {}; // Store child URLs
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 500),
     );
 
     // Clear caches
@@ -57,6 +62,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     // Start animations after frame is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _controller.forward();
+
       context.read<Chapters>().loadScreenData(widget.url);
     });
   }
@@ -64,6 +70,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
   @override
   void dispose() {
     _controller.dispose();
+    _isDisposed = true;
     super.dispose();
   }
 
@@ -81,11 +88,35 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     return name[0].toUpperCase() + name.substring(1);
   }
 
-  // Add this new widget to display post-coordination scales
+  // Update the _buildPostCoordinationScales method to handle more granular loading states
   Widget _buildPostCoordinationScales(
       BuildContext context, Map<String, dynamic>? data) {
-    if (data == null ||
-        data['classKind'] != 'category' ||
+    if (data == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Show skeleton UI ONLY during initial load (when NO entities are loaded yet)
+    final bool isInitialLoading = data['classKind'] == 'category' &&
+        data['postcoordinationScale'] != null &&
+        _isLoadingAnyEntity &&
+        _entityCache.isEmpty;
+
+    if (isInitialLoading) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 24),
+          // Post-coordination section header with skeleton
+          PostCoordiantionGuide(),
+          const SizedBox(height: 16),
+          // Skeleton loading UI with fixed dimensions
+          _buildPostCoordinationSkeleton(context),
+        ],
+      );
+    }
+
+    // If no post-coordination is available, return empty widget
+    if (data['classKind'] != 'category' ||
         data['postcoordinationScale'] == null) {
       return const SizedBox.shrink();
     }
@@ -103,7 +134,8 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
 
         // Composite code display (when codes are selected)
         if (_selectedPostCoordinationCodes.isNotEmpty)
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -147,7 +179,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                             code: _buildCompositeCode(baseCode),
                             description: _selectedPostCoordinationCodes
                                 .map((url) => _entityLabels[url])
-                                .join(' '));
+                                .join('\n'));
                         Clipboard.setData(ClipboardData(
                                 text: _buildCompositeCode(baseCode)))
                             .then((_) {
@@ -172,11 +204,9 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                     ),
                   ],
                 ),
-
-                // Display selected codes with remove option
               ],
             ),
-          ),
+          ).animate().fadeIn(duration: 200.ms).slide(),
 
         const SizedBox(height: 24),
 
@@ -201,220 +231,134 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
             description = "(use additional code, if desired)";
           }
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Axis name and description
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "$axisName $description",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                    ),
-                  ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primaryContainer
-                          .withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      scale['allowMultipleValues'] == 'AllowAlways'
-                          ? "Multiple allowed"
-                          : "Single selection",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.primary,
+          // Check if this particular scale is loading - more granular loading state
+          final bool isScaleLoading = _isScaleLoading(entities);
+          final bool isScaleInitialLoading = isScaleLoading &&
+              !entities.any((url) => _entityCache.containsKey(url));
+
+          return AnimatedSize(
+            duration: const Duration(milliseconds: 150),
+            alignment: Alignment.topCenter,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Axis name and description - always visible
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "$axisName $description",
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-
-              if (entities.length > 8) ...[
-                // Add search field for large entity lists
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'search in axis: $axisName',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(
-                          color: Colors.grey.shade300,
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        scale['allowMultipleValues'] == 'AllowAlways'
+                            ? "Multiple allowed"
+                            : "Single selection",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     ),
-                    // Implement filtering logic here
-                  ),
+                  ],
                 ),
-                // For large lists, add a "Load all" button
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Set loading state for all entities
-                    setState(() {
-                      for (final url in entities) {
-                        if (!_entityCache.containsKey(url)) {
-                          _loadingEntities[url] = true;
-                        }
-                      }
-                      _isLoadingAnyEntity = true;
-                    });
 
-                    // Load all entities for this axis
-                    _loadEntitiesForScale(entities);
-                  },
-                  icon: const Icon(Icons.download, size: 16),
-                  label: Text("Load all ${entities.length} options"),
-                  style: ElevatedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              const SizedBox(height: 8),
-
-              // Entity list with proper data display
-              ...entities.map((entityUrl) {
-                // Start loading if not already loaded
-                if (!_entityCache.containsKey(entityUrl) &&
-                    _loadingEntities[entityUrl] != true) {
-                  // Schedule loading after build
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _loadEntityData(entityUrl);
-                  });
-                }
-
-                final isLoading = _loadingEntities[entityUrl] == true;
-                final entityData = _entityCache[entityUrl];
-
-                final entityCode = entityData?['code'] ?? '';
-                final hasCode = entityCode.isNotEmpty;
-
-                final entityTitle = entityData?['title']?['@value'] ??
-                    (isLoading ? 'Loading...' : 'Unknown');
-
-                final isSelected =
-                    _selectedPostCoordinationCodes.contains(entityUrl);
-                final allowMultiple =
-                    scale['allowMultipleValues'] == 'AllowAlways';
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4.0),
-                  child: InkWell(
-                    onTap: isLoading || !hasCode
-                        ? null
-                        : () {
-                            _toggleEntitySelection(entityUrl, scale);
-                          },
-                    borderRadius: BorderRadius.circular(4),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            child: isLoading
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2))
-                                : hasCode
-                                    ? isSelected
-                                        ? Icon(
-                                            allowMultiple
-                                                ? Icons.check_box
-                                                : Icons.radio_button_checked,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                            size: 20,
-                                          )
-                                        : Icon(
-                                            allowMultiple
-                                                ? Icons.check_box_outline_blank
-                                                : Icons.radio_button_unchecked,
-                                            color: Colors.grey,
-                                            size: 20,
-                                          )
-                                    : const Icon(
-                                        Icons.info_outline,
-                                        color: Colors.grey,
-                                        size: 20,
-                                      ),
+                if (entities.length > 8 && !isScaleInitialLoading) ...[
+                  // Search field and "Load all" button - only show if not in initial loading
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'search in axis: $axisName',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: Colors.grey.shade300,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: isLoading
-                                ? buildSkeletonLoader(
-                                    height: 16,
-                                    width: double.infinity,
-                                    borderRadius: BorderRadius.circular(4),
-                                  )
-                                : RichText(
-                                    text: TextSpan(
-                                      children: [
-                                        TextSpan(
-                                          text: hasCode
-                                              ? entityCode
-                                              : '(No code) ',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: hasCode
-                                                ? Theme.of(context)
-                                                    .colorScheme
-                                                    .primary
-                                                : Colors.grey,
-                                          ),
-                                        ),
-                                        TextSpan(
-                                          text: hasCode
-                                              ? " $entityTitle"
-                                              : entityTitle,
-                                          style: TextStyle(
-                                            color: hasCode
-                                                ? Theme.of(context)
-                                                            .brightness ==
-                                                        Brightness.dark
-                                                    ? Colors.white
-                                                    : Colors.black
-                                                : Colors.grey,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                          ),
-                        ],
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                     ),
                   ),
-                );
-              }).toList(),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Set loading state for all entities
+                      setState(() {
+                        for (final url in entities) {
+                          if (!_entityCache.containsKey(url)) {
+                            _loadingEntities[url] = true;
+                          }
+                        }
+                        _isLoadingAnyEntity = true;
+                      });
 
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-            ],
-          );
+                      // Load all entities for this axis
+                      _loadEntitiesForScale(entities);
+                    },
+                    icon: const Icon(Icons.download, size: 16),
+                    label: Text("Load all ${entities.length} options"),
+                    style: ElevatedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                const SizedBox(height: 8),
+
+                // Entity list - conditional loading based on scale state
+                if (isScaleInitialLoading)
+                  // If entire scale is in initial loading, show fixed placeholders
+                  _buildEntityLoadingList(min(5, entities.length))
+                      .animate()
+                      .fadeIn(duration: 200.ms)
+                else
+                  // Otherwise render each entity with individual loading states
+                  Column(
+                    children: entities.map((entityUrl) {
+                      return _buildEntityItem(entityUrl, scale);
+                    }).toList(),
+                  ).animate().fadeIn(duration: 200.ms),
+
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ).animate().fadeIn(duration: 300.ms);
         }).toList(),
       ],
     );
+  }
+
+  // Add this helper method to check if a specific scale is loading
+  bool _isScaleLoading(List<String> entityUrls) {
+    // Check if any of the direct child entities are loading
+    for (final url in entityUrls) {
+      if (_loadingEntities[url] == true) {
+        return true;
+      }
+    }
+    return false;
   }
 
   String _buildCompositeCode(String baseCode) {
@@ -441,6 +385,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     return result;
   }
 
+  // Update the _toggleEntitySelection method to properly handle nested hierarchies
   void _toggleEntitySelection(String entityUrl, Map<String, dynamic> scale) {
     final allowMultiple = scale['allowMultipleValues'] == 'AllowAlways';
     final entityData = _entityCache[entityUrl];
@@ -456,8 +401,12 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
         _selectedPostCoordinationCodes.remove(entityUrl);
       } else {
         // If multiple selections not allowed, remove any existing selection from this scale
+        // including from any nested child at any depth
         if (!allowMultiple) {
-          final scaleEntities = List<String>.from(scale['scaleEntity'] ?? []);
+          // Get all entities that belong to this scale (including nested ones)
+          final scaleEntities = _getAllEntitiesForScale(scale);
+
+          // Remove any selected codes from this scale
           _selectedPostCoordinationCodes
               .removeWhere((url) => scaleEntities.contains(url));
         }
@@ -466,6 +415,226 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
         _selectedPostCoordinationCodes.add(entityUrl);
       }
     });
+  }
+
+  // Add this helper method to recursively get all entities that belong to a scale
+  Set<String> _getAllEntitiesForScale(Map<String, dynamic> scale) {
+    Set<String> result = {};
+
+    // Add direct children from the scale
+    if (scale['scaleEntity'] != null && scale['scaleEntity'] is List) {
+      final directEntities = List<String>.from(scale['scaleEntity']);
+      result.addAll(directEntities);
+
+      // Now recursively check for all nested children
+      for (final entityUrl in directEntities) {
+        _addAllNestedChildren(entityUrl, result);
+      }
+    }
+
+    return result;
+  }
+
+  // Recursively add all nested children of an entity
+  void _addAllNestedChildren(String entityUrl, Set<String> accumulator) {
+    // If we have children for this entity
+    if (_entityChildrenUrls.containsKey(entityUrl)) {
+      final childUrls = _entityChildrenUrls[entityUrl]!;
+
+      // Add all children
+      accumulator.addAll(childUrls);
+
+      // Recursively process each child
+      for (final childUrl in childUrls) {
+        _addAllNestedChildren(childUrl, accumulator);
+      }
+    }
+  }
+
+// Replace your _loadEntityData method with this enhanced version
+  Future<void> _loadEntityData(String entityUrl,
+      {bool forceRefresh = false,
+      bool loadChildren = true,
+      int nestingLevel = 0, // Track nesting level for smart loading
+      int maxDepth = 5 // Prevent infinite recursion
+      }) async {
+    if (!mounted) return; // Stop if widget is no longer mounted
+    if (!forceRefresh && _entityCache.containsKey(entityUrl) ||
+        nestingLevel > maxDepth) {
+      return; // Already loaded or reached max depth
+    }
+
+    setState(() {
+      _loadingEntities[entityUrl] = true;
+      _isLoadingAnyEntity = true;
+    });
+
+    try {
+      final chapters = Provider.of<Chapters>(context, listen: false);
+      // First check if data exists in chapters cache
+      Map<String, dynamic>? data = chapters.getDataForUrl(entityUrl);
+
+      // If not in cache, load it
+      data ??= await chapters.loadItemData(entityUrl);
+
+      if (data != null && mounted) {
+        // Add mounted check here too
+        setState(() {
+          _entityCache[entityUrl] = data!;
+          // Update entity labels map
+          final code = data['code'] ?? '';
+          final title = data['title']?['@value'] ?? 'Unknown';
+          _entityLabels[entityUrl] = '$code - $title';
+
+          // Check if this entity has children and NO code - need to load them
+          final hasChildren = data['child'] != null &&
+              data['child'] is List &&
+              (data['child'] as List).isNotEmpty;
+          final hasCode = code.isNotEmpty;
+
+          if (hasChildren) {
+            // Store for UI expansion regardless of code status
+            _entityHasChildren[entityUrl] = true;
+            _expandedEntities[entityUrl] = false; // Default collapsed
+
+            // Store child URLs
+            List<String> childUrls = List<String>.from(data['child']);
+            _entityChildrenUrls[entityUrl] = childUrls;
+
+            // Smart preloading strategy based on nesting level
+            if (loadChildren) {
+              int preloadCount;
+              if (nestingLevel == 0) {
+                // First level: Load first few children immediately
+                preloadCount = 3;
+              } else if (nestingLevel == 1) {
+                // Second level: Load fewer children
+                preloadCount = 2;
+              } else {
+                // Deeper levels: Load just one to maintain responsiveness
+                preloadCount = 1;
+              }
+
+              // Preload immediate children
+              for (int i = 0; i < childUrls.length && i < preloadCount; i++) {
+                // Load but don't recursively load grandchildren until expanded
+                _loadEntityData(childUrls[i],
+                    loadChildren: false, nestingLevel: nestingLevel + 1);
+              }
+
+              // For no-code parent categories at level 0-1, also check first child
+              // to see if it has children (common hierarchical pattern)
+              if (!hasCode && nestingLevel <= 1 && childUrls.isNotEmpty) {
+                // Check first child for deeper nesting
+                _checkForDeepNesting(childUrls.first, nestingLevel + 1);
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      print(
+          'Error loading entity data for $entityUrl (level $nestingLevel): $e');
+    } finally {
+      if (mounted) {
+        // Important mounted check before setState
+        setState(() {
+          _loadingEntities[entityUrl] = false;
+
+          // Check if ANY entity is still loading
+          bool stillLoading = false;
+          _loadingEntities.forEach((key, value) {
+            if (value) stillLoading = true;
+          });
+          _isLoadingAnyEntity = stillLoading;
+        });
+      }
+    }
+  }
+
+// Add this helper method to check for deep nesting patterns
+  Future<void> _checkForDeepNesting(String entityUrl, int nestingLevel) async {
+    if (!mounted) return;
+
+    try {
+      final chapters = Provider.of<Chapters>(context, listen: false);
+      Map<String, dynamic>? data = chapters.getDataForUrl(entityUrl);
+      data ??= await chapters.loadItemData(entityUrl);
+
+      if (data != null && mounted) {
+        final hasChildren = data['child'] != null &&
+            data['child'] is List &&
+            (data['child'] as List).isNotEmpty;
+        final hasCode = (data['code'] ?? '').isNotEmpty;
+
+        if (hasChildren && !hasCode) {
+          // Store metadata for this entity
+          setState(() {
+            _entityCache[entityUrl] = data!;
+            _entityHasChildren[entityUrl] = true;
+            _expandedEntities[entityUrl] = false;
+            _entityChildrenUrls[entityUrl] = List<String>.from(data['child']);
+
+            final title = data['title']?['@value'] ?? 'Unknown';
+            _entityLabels[entityUrl] = '${data['code'] ?? ''} - $title';
+          });
+        }
+      }
+    } catch (e) {
+      print('Error checking deep nesting for $entityUrl: $e');
+    }
+  }
+
+// Modify this method to handle expanded state more efficiently
+  void _onEntityExpand(String entityUrl) {
+    setState(() {
+      // Toggle expanded state
+      _expandedEntities[entityUrl] = !(_expandedEntities[entityUrl] ?? false);
+
+      // Load children when expanded
+      if (_expandedEntities[entityUrl] == true) {
+        final childUrls = _entityChildrenUrls[entityUrl] ?? [];
+        for (final childUrl in childUrls) {
+          if (!_entityCache.containsKey(childUrl)) {
+            _loadEntityData(childUrl, loadChildren: true);
+          }
+        }
+
+        // Also probe one level deeper for nested hierarchies
+        _loadDeepNestingOnExpand(childUrls);
+      }
+    });
+  }
+
+// Add this method to smartly load deeper nested structures
+  Future<void> _loadDeepNestingOnExpand(List<String> childUrls) async {
+    if (!mounted) return;
+
+    // Only process a few children to prevent overwhelming
+    final sampleSize = childUrls.length > 3 ? 3 : childUrls.length;
+    final sampleUrls = childUrls.take(sampleSize).toList();
+
+    for (final url in sampleUrls) {
+      if (_entityCache.containsKey(url)) {
+        final entityData = _entityCache[url]!;
+        final hasChildren = entityData['child'] != null &&
+            entityData['child'] is List &&
+            (entityData['child'] as List).isNotEmpty;
+        final hasCode = (entityData['code'] ?? '').isNotEmpty;
+
+        if (hasChildren && !hasCode) {
+          // It's a category with children - prepare child data
+          List<String> grandchildUrls = List<String>.from(entityData['child']);
+          _entityChildrenUrls[url] = grandchildUrls;
+          _entityHasChildren[url] = true;
+
+          // Preload first couple of grandchildren
+          for (int i = 0; i < grandchildUrls.length && i < 2; i++) {
+            _loadEntityData(grandchildUrls[i], loadChildren: false);
+          }
+        }
+      }
+    }
   }
 
   @override
@@ -497,6 +666,82 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
           ),
         ),
       ),
+
+      // Add this to the Scaffold in your ChapterDetailScreen build method
+// Inside the Scaffold, after the existing properties like appBar and body:
+
+      floatingActionButton: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Container(
+            height: 56,
+            width: 56,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              heroTag: 'homeButton',
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              splashColor:
+                  Theme.of(context).colorScheme.onPrimary.withOpacity(0.4),
+              onPressed: () {
+                // Add navigation animation
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: Container(
+                height: 56,
+                width: 56,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Theme.of(context).colorScheme.primary,
+                      Theme.of(context).colorScheme.secondary,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: const Icon(
+                  Icons.home_rounded,
+                  size: 28,
+                ),
+              ),
+            ),
+          )
+              .animate(
+                autoPlay: true,
+                onComplete: (controller) {
+                  controller.repeat(reverse: true);
+                },
+              )
+              .scaleXY(
+                begin: 1.0,
+                end: 1.05,
+                duration: 2000.ms,
+                curve: Curves.easeInOut,
+              )
+              .animate(
+                target: _controller.value,
+              )
+              .rotate(
+                begin: 0,
+                end: 0.00,
+                duration: 300.ms,
+                curve: Curves.easeOut,
+              );
+        },
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Column(
         children: [
           Expanded(
@@ -876,7 +1121,7 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
       decoration: BoxDecoration(
         borderRadius: borderRadius ?? BorderRadius.circular(4),
         color: Theme.of(context).brightness == Brightness.dark
-            ? Colors.grey.shade800.withOpacity(0.6)
+            ? Colors.grey.shade800.withValues(alpha: 0.6)
             : Colors.grey.shade300,
       ),
     );
@@ -910,46 +1155,6 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     return results;
   }
 
-  // Add this method to fetch entity data
-  Future<void> _loadEntityData(String entityUrl,
-      {bool forceRefresh = false}) async {
-    if (!forceRefresh && _entityCache.containsKey(entityUrl)) {
-      return; // Already loaded
-    }
-
-    setState(() {
-      _loadingEntities[entityUrl] = true;
-      _isLoadingAnyEntity = true;
-    });
-
-    try {
-      final chapters = Provider.of<Chapters>(context, listen: false);
-      // First check if data exists in chapters cache
-      Map<String, dynamic>? data = chapters.getDataForUrl(entityUrl);
-
-      // If not in cache, load it
-      data ??= await chapters.loadItemData(entityUrl);
-
-      if (data != null) {
-        setState(() {
-          _entityCache[entityUrl] = data!;
-          // Update entity labels map
-          final code = data['code'] ?? '';
-          final title = data['title']?['@value'] ?? 'Unknown';
-          _entityLabels[entityUrl] = '$code - $title';
-        });
-      }
-    } catch (e) {
-      print('Error loading entity data for $entityUrl: $e');
-    } finally {
-      setState(() {
-        _loadingEntities[entityUrl] = false;
-        _isLoadingAnyEntity =
-            _loadingEntities.values.any((isLoading) => isLoading);
-      });
-    }
-  }
-
   // Add this method to load entities for a scale
   Future<void> _loadEntitiesForScale(List<String> entityUrls) async {
     // Load all entities in parallel with a limit
@@ -962,5 +1167,288 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
     for (final batch in batches) {
       await Future.wait(batch.map((url) => _loadEntityData(url)));
     }
+  }
+
+  // Add this to improve visual display of deep hierarchies
+  Widget _buildHierarchyConnector(double indentLevel) {
+    if (indentLevel == 0) return const SizedBox.shrink();
+
+    return Positioned(
+      left: indentLevel * 16 - 8,
+      top: 0,
+      bottom: 0,
+      width: 0,
+      child: Container(
+        color: Colors.red,
+      ),
+    );
+  }
+
+  // Add this method to create consistent skeleton loaders for post-coordination items
+  Widget _buildPostCoordinationSkeleton(BuildContext context) {
+    return Column(
+      children: List.generate(
+        3,
+        (scaleIndex) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Axis header skeleton
+            Row(
+              children: [
+                Expanded(
+                  child: buildSkeletonLoader(
+                    height: 24,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                buildSkeletonLoader(
+                  height: 24,
+                  width: 80,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Entity items skeletons - create multiple with consistent heights
+            ...List.generate(
+                5,
+                (index) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: Row(
+                        children: [
+                          buildSkeletonLoader(
+                            height: 20,
+                            width: 20,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: buildSkeletonLoader(
+                              height: 20,
+                              width: double.infinity,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+
+            const SizedBox(height: 16),
+            buildSkeletonLoader(
+              height: 1,
+              width: double.infinity,
+              borderRadius: BorderRadius.circular(0),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+// Add this method to build a list of skeleton placeholders with consistent height
+  Widget _buildEntityLoadingList(int count) {
+    return Column(
+      children: List.generate(
+        count,
+        (index) => Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: Row(
+            children: [
+              buildSkeletonLoader(
+                height: 20,
+                width: 20,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: buildSkeletonLoader(
+                  height: 20,
+                  width: double.infinity,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// Add this method to render entity items with proper hierarchy and loading states
+  Widget _buildEntityItem(String entityUrl, Map<String, dynamic> scale,
+      {double indentLevel = 0}) {
+    // Start loading if not already loaded
+    if (!_entityCache.containsKey(entityUrl) &&
+        _loadingEntities[entityUrl] != true) {
+      // Schedule loading after build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          // Only load if still mounted
+          _loadEntityData(entityUrl);
+        }
+      });
+    }
+
+    final isLoading = _loadingEntities[entityUrl] == true;
+    final entityData = _entityCache[entityUrl];
+
+    final entityCode = entityData?['code'] ?? '';
+    final hasCode = entityCode.isNotEmpty;
+
+    final entityTitle = entityData?['title']?['@value'] ??
+        (isLoading ? 'Loading...' : 'Unknown');
+
+    final isSelected = _selectedPostCoordinationCodes.contains(entityUrl);
+    final allowMultiple = scale['allowMultipleValues'] == 'AllowAlways';
+    final hasChildren = _entityHasChildren[entityUrl] == true;
+    final isExpanded = _expandedEntities[entityUrl] == true;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(bottom: 4.0, left: indentLevel * 16),
+          child: Stack(
+            children: [
+              if (indentLevel > 0) _buildHierarchyConnector(indentLevel),
+              InkWell(
+                onTap: isLoading
+                    ? null
+                    : () {
+                        if (hasChildren && !hasCode) {
+                          // Toggle expansion for parent categories
+                          _onEntityExpand(entityUrl);
+                        } else if (hasCode) {
+                          // Select/deselect for entities with codes
+                          _toggleEntitySelection(entityUrl, scale);
+                        }
+                      },
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: isLoading
+                            ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                            : hasChildren && !hasCode
+                                ? Icon(
+                                    isExpanded
+                                        ? Icons.expand_more
+                                        : Icons.chevron_right,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    size: 20,
+                                  )
+                                : hasCode
+                                    ? isSelected
+                                        ? Icon(
+                                            allowMultiple
+                                                ? Icons.check_box
+                                                : Icons.radio_button_checked,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                            size: 20,
+                                          )
+                                        : Icon(
+                                            allowMultiple
+                                                ? Icons.check_box_outline_blank
+                                                : Icons.radio_button_unchecked,
+                                            color: Colors.grey,
+                                            size: 20,
+                                          )
+                                    : const Icon(
+                                        Icons.remove,
+                                        color: Colors.grey,
+                                        size: 20,
+                                      ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: isLoading
+                            ? buildSkeletonLoader(
+                                height: 16,
+                                width: double.infinity,
+                                borderRadius: BorderRadius.circular(4),
+                              )
+                            : RichText(
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: hasCode
+                                          ? entityCode
+                                          : hasChildren
+                                              ? ''
+                                              : '(No code) ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: hasCode
+                                            ? Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: hasCode
+                                          ? " $entityTitle"
+                                          : entityTitle,
+                                      style: TextStyle(
+                                        color: hasChildren && !hasCode
+                                            ? Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                            : hasCode
+                                                ? Theme.of(context)
+                                                            .brightness ==
+                                                        Brightness.dark
+                                                    ? Colors.white
+                                                    : Colors.black
+                                                : Colors.grey,
+                                        fontWeight: hasChildren && !hasCode
+                                            ? FontWeight.w500
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Show children if expanded
+        if (hasChildren &&
+            isExpanded &&
+            _entityChildrenUrls.containsKey(entityUrl))
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            alignment: Alignment.topCenter,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _entityChildrenUrls[entityUrl]!.map((childUrl) {
+                return _buildEntityItem(childUrl, scale,
+                    indentLevel: indentLevel + 1);
+              }).toList(),
+            ),
+          ),
+      ],
+    );
   }
 }

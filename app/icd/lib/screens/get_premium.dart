@@ -17,7 +17,6 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
   bool _isLoading = false;
 
   // List of premium features
- 
 
   Future<void> _handlePurchase() async {
     setState(() => _isLoading = true);
@@ -70,12 +69,12 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
                       end: Alignment.bottomRight,
                       colors: [
                         theme.colorScheme.primaryContainer,
-                        theme.colorScheme.primary.withOpacity(0.8),
+                        theme.colorScheme.primary.withValues(alpha: 0.8),
                       ],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: theme.colorScheme.primary.withOpacity(0.3),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),
@@ -106,7 +105,8 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: isDark
                               ? Colors.white70
-                              : theme.colorScheme.onPrimary.withOpacity(0.9),
+                              : theme.colorScheme.onPrimary
+                                  .withValues(alpha: 0.9),
                         ),
                         textAlign: TextAlign.center,
                       ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
@@ -119,11 +119,11 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
                 // Premium card with price
                 Card(
                   elevation: 8,
-                  shadowColor: theme.colorScheme.primary.withOpacity(0.3),
+                  shadowColor: theme.colorScheme.primary.withValues(alpha: 0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                     side: BorderSide(
-                      color: theme.colorScheme.primary.withOpacity(0.2),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
                       width: 2,
                     ),
                   ),
@@ -140,8 +140,8 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color:
-                                    theme.colorScheme.tertiary.withOpacity(0.3),
+                                color: theme.colorScheme.tertiary
+                                    .withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -251,7 +251,7 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
                               Icons.security,
                               size: 16,
                               color: theme.colorScheme.onSurfaceVariant
-                                  .withOpacity(0.7),
+                                  .withValues(alpha: 0.7),
                             ),
                             const SizedBox(width: 6),
                             Text(
@@ -259,7 +259,7 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 color: theme.colorScheme.onSurfaceVariant
-                                    .withOpacity(0.7),
+                                    .withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -288,7 +288,8 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
                 // Testimonial section
                 Card(
                   elevation: 0,
-                  color: theme.colorScheme.secondaryContainer.withOpacity(0.5),
+                  color: theme.colorScheme.secondaryContainer
+                      .withValues(alpha: 0.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -360,6 +361,4 @@ class _GetPremiumScreenState extends State<GetPremiumScreen> {
       ),
     );
   }
-
-  
 }

@@ -14,12 +14,11 @@ import 'package:icd/state/auth_state.dart';
 import 'package:icd/widgets/alar.dart';
 import 'package:icd/widgets/main_screen/chapter_listview.dart';
 import 'package:icd/widgets/main_screen/floating_search.dart';
+import 'package:icd/widgets/main_screen/team.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/chapter_detail_screen.dart';
 import 'state/chapters_state.dart';
 import 'package:animated_bottom_navigation_bar/animated_bottom_navigation_bar.dart';
-import 'package:lottie/lottie.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +51,7 @@ class MyApp extends StatelessWidget {
           tertiary: const Color(0xFFEFE9F7), // Very light purple
           surface: const Color(0xFFF7F2FA), // Almost white purple
           background: Colors.white,
+
           error: const Color(0xFFBA1A1A),
         ),
         fontFamily: 'Montserrat',
@@ -217,18 +217,13 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
 
                 ListTile(
                   onTap: () async {
-                    // Show history of viewed codes - implement later
-                    _advancedDrawerController.hideDrawer();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('History feature coming soon'),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => FeedbackScreen()),
                     );
                   },
-                  leading: const Icon(Icons.history),
-                  title: const Text('History'),
+                  leading: const Icon(Icons.feedback_outlined),
+                  title: const Text('Feedback'),
                 ),
 
                 ListTile(
@@ -595,6 +590,18 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   title: const Text('About'),
                 ),
 
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    showDialog(
+                      context: context,
+                      builder: (context) => const AlarTeamContact(),
+                    );
+                  },
+                  leading: const Icon(Icons.groups_rounded),
+                  title: const Text('Alar Team'),
+                ),
+
                 // Add padding at the bottom for better spacing
                 const SizedBox(height: 24),
               ],
@@ -679,47 +686,50 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
           // Remove the clear cache action from app bar since it's now in the drawer
         ),
         // Rest of your existing Scaffold body
-        body: Consumer<Chapters>(
-          builder: (context, chapters, _) {
-            // Show a loading indicator if chapters aren't initialized yet
-            if (!chapters.isInitialized) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Loading ICD-11 Chapters...'),
-                  ],
-                ),
-              );
-            }
+        body: Hero(
+          tag: "homeButton",
+          child: Consumer<Chapters>(
+            builder: (context, chapters, _) {
+              // Show a loading indicator if chapters aren't initialized yet
+              if (!chapters.isInitialized) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Loading ICD-11 Chapters...'),
+                    ],
+                  ),
+                );
+              }
 
-            // Show error if initialization failed
-            if (chapters.error != null) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    SizedBox(height: 16),
-                    Text('Error: ${chapters.error}'),
-                    SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        chapters.initializeChapters();
-                      },
-                      child: Text('Retry'),
-                    ),
-                  ],
-                ),
+              // Show error if initialization failed
+              if (chapters.error != null) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      SizedBox(height: 16),
+                      Text('Error: ${chapters.error}'),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          chapters.initializeChapters();
+                        },
+                        child: Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              // Display chapters list
+              return MainScreenChapterListview(
+                chapters: chapters,
               );
-            }
-            // Display chapters list
-            return MainScreenChapterListview(
-              chapters: chapters,
-            );
-          },
+            },
+          ),
         ),
         floatingActionButton: FloatingActionSearchButton(
             fabAnimationController: _fabAnimationController,

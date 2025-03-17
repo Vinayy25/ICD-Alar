@@ -113,7 +113,7 @@ class _ExpandableDefinitionState extends State<ExpandableDefinition>
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -170,7 +170,7 @@ class _ExpandableDefinitionState extends State<ExpandableDefinition>
                             color: Theme.of(context)
                                 .colorScheme
                                 .primaryContainer
-                                .withOpacity(0.3),
+                                .withValues(alpha: 0.3),
                           ),
                           child: Center(
                             child: Row(
