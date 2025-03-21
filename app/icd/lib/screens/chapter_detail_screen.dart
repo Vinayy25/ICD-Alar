@@ -175,11 +175,35 @@ class _ChapterDetailScreenState extends State<ChapterDetailScreen>
                     IconButton(
                       icon: const Icon(Icons.copy, size: 20),
                       onPressed: () {
+                        // Get base entity information from the data parameter
+                        final baseEntityTitle =
+                            data?['title']?['@value'] ?? 'Unknown';
+
+                        // Construct a more complete description
+                        final description = StringBuffer();
+
+                        // Start with the base code and title
+                        description.writeln('$baseCode - $baseEntityTitle');
+
+                        // If we have post-coordination codes, add them with a header
+                        if (_selectedPostCoordinationCodes.isNotEmpty) {
+                          description.writeln('\nWith post-coordination:');
+
+                          // Add each selected post-coordination code and description
+                          for (final url in _selectedPostCoordinationCodes) {
+                            final codeLabel =
+                                _entityLabels[url] ?? 'Unknown code';
+                            description.writeln('• $codeLabel');
+                          }
+                        }
+
+                        // Save to clipboard history with the enhanced description
                         context.saveToClipboardHistory(
-                            code: _buildCompositeCode(baseCode),
-                            description: _selectedPostCoordinationCodes
-                                .map((url) => _entityLabels[url])
-                                .join('\n'));
+                          code: _buildCompositeCode(baseCode),
+                          description: description.toString(),
+                        );
+
+                        // Copy the code to clipboard
                         Clipboard.setData(ClipboardData(
                                 text: _buildCompositeCode(baseCode)))
                             .then((_) {

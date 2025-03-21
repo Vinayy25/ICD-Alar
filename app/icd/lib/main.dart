@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_advanced_drawer/flutter_advanced_drawer.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:icd/firebase_options.dart';
+import 'package:icd/screens/about_screen.dart';
 import 'package:icd/screens/auth_screen.dart';
 import 'package:icd/screens/clipboard.dart';
 import 'package:icd/screens/contribute_to_developer.dart';
+import 'package:icd/screens/disclaimer_screen.dart';
 import 'package:icd/screens/feedback_screen.dart';
 import 'package:icd/screens/get_premium.dart';
 import 'package:icd/screens/search_screen.dart';
@@ -219,12 +221,118 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   onTap: () async {
                     Navigator.push(
                       context,
+                      MaterialPageRoute(
+                          builder: (context) => DisclaimerScreen(
+                                onAccept: () {
+                                  Navigator.of(context).pop();
+                                },
+                              )),
+                    );
+                  },
+                  leading: const Icon(Icons.feedback_outlined),
+                  title: const Text('Disclaimer'),
+                ),
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => GetPremiumScreen()),
+                    );
+                  },
+                  leading: const Icon(Icons.feedback),
+                  title: const Text('Pro Features'),
+                ),
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    // Navigate to search screen
+                    Navigator.of(context).push(
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            const SearchScreen(),
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) {
+                          const begin = Offset(0.0, 1.0);
+                          const end = Offset.zero;
+                          const curve = Curves.easeOutQuint;
+
+                          var tween = Tween(begin: begin, end: end)
+                              .chain(CurveTween(curve: curve));
+
+                          return SlideTransition(
+                            position: animation.drive(tween),
+                            child: child,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.search),
+                  title: const Text('Search'),
+                ),
+
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content:
+                            const Text('Offline codes feature coming soon'),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.download),
+                  title: const Text('Download Data'),
+                ),
+                ListTile(
+                  onTap: () async {
+                    Navigator.push(
+                      context,
                       MaterialPageRoute(builder: (context) => FeedbackScreen()),
                     );
                   },
                   leading: const Icon(Icons.feedback_outlined),
                   title: const Text('Feedback'),
                 ),
+
+                ListTile(
+                  leading: Icon(Icons.favorite),
+                  title: Text('Support Development'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => ContributeToDeveloper()),
+                    );
+                  },
+                ),
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    showDialog(
+                      context: context,
+                      builder: (context) => const AlarTeamContact(),
+                    );
+                  },
+                  leading: const Icon(Icons.groups_rounded),
+                  title: const Text('Alar Team'),
+                ),
+                ListTile(
+                  onTap: () {
+                    _advancedDrawerController.hideDrawer();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => AboutScreen()),
+                    );
+                  },
+                  leading: const Icon(Icons.info),
+                  title: const Text('About Easy ICD-11'),
+                ),
+                Divider(color: Colors.white30),
 
                 ListTile(
                   onTap: () async {
@@ -286,92 +394,8 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
                   leading: const Icon(Icons.cleaning_services),
                   title: const Text('Clear Cache'),
                 ),
-                //premium screen
-                ListTile(
-                  onTap: () {
-                    _advancedDrawerController.hideDrawer();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => GetPremiumScreen()),
-                    );
-                  },
-                  leading: const Icon(Icons.feedback),
-                  title: const Text('Get Premium'),
-                ),
-
                 // Medical Tools Section
-                Divider(color: Colors.white30),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    "Medical Tools",
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
 
-                ListTile(
-                  onTap: () {
-                    _advancedDrawerController.hideDrawer();
-                    // Navigate to search screen
-                    Navigator.of(context).push(
-                      PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) =>
-                            const SearchScreen(),
-                        transitionsBuilder:
-                            (context, animation, secondaryAnimation, child) {
-                          const begin = Offset(0.0, 1.0);
-                          const end = Offset.zero;
-                          const curve = Curves.easeOutQuint;
-
-                          var tween = Tween(begin: begin, end: end)
-                              .chain(CurveTween(curve: curve));
-
-                          return SlideTransition(
-                            position: animation.drive(tween),
-                            child: child,
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  leading: const Icon(Icons.search),
-                  title: const Text('ICD Search'),
-                ),
-
-                ListTile(
-                  onTap: () {
-                    _advancedDrawerController.hideDrawer();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content:
-                            const Text('Offline codes feature coming soon'),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  leading: const Icon(Icons.download),
-                  title: const Text('Download Offline Data'),
-                ),
-
-                // Add to your navigation or drawer menu
-                ListTile(
-                  leading: Icon(Icons.favorite),
-                  title: Text('Support Development'),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => ContributeToDeveloper()),
-                    );
-                  },
-                ),
-
-                Divider(color: Colors.white30),
                 ListTile(
                   onTap: () {
                     // Close the drawer first
@@ -430,177 +454,6 @@ class _HomeState extends State<Home> with SingleTickerProviderStateMixin {
 
                 // Contact & About Section
                 Divider(color: Colors.white30),
-
-                ListTile(
-                  onTap: () {
-                    _advancedDrawerController.hideDrawer();
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return Dialog(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.8,
-                              minWidth: 280,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Contact Developer',
-                                    style:
-                                        Theme.of(context).textTheme.titleLarge,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text('Name: Vinayachandra'),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      const Icon(Icons.email, size: 16),
-                                      const SizedBox(width: 8),
-                                      Flexible(
-                                        child: SelectableText(
-                                          'vinaychandra166@gmail.com',
-                                          style: const TextStyle(
-                                            decoration:
-                                                TextDecoration.underline,
-                                            color: Colors.blue,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  // Change this
-                                  Wrap(
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
-                                      const Icon(Icons.phone, size: 16),
-                                      const SizedBox(width: 8),
-                                      SelectableText(
-                                          '7996336041'), // No Flexible here, which is good
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      child: const Text('Close'),
-                                      onPressed: () {
-                                        Navigator.of(context).pop();
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                  leading: const Icon(Icons.contact_mail),
-                  title: const Text('Contact Developer'),
-                ),
-
-                ListTile(
-                  onTap: () {
-                    _advancedDrawerController.hideDrawer();
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: Text('About ICD-11 Browser'),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('ICD-11 Browser'),
-                              const SizedBox(height: 8),
-                              Text('Version 1.0.0'),
-                              const SizedBox(height: 16),
-                              Text(
-                                  'This application is licensed under GNU General Public License v3.0'),
-                              const SizedBox(height: 8),
-                              Text('Source available at:',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              SelectableText(
-                                  'https://github.com/Vinayy25/ICD-Alar.git'),
-                            ],
-                          ),
-                          actions: <Widget>[
-                            TextButton(
-                              child: Text('Close'),
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                            ),
-                            TextButton(
-                              child: Text('View License'),
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      title: Text('GNU GPL v3 License'),
-                                      content: Container(
-                                        width: double.maxFinite,
-                                        height: 400,
-                                        child: SingleChildScrollView(
-                                          child: Text(
-                                              'GNU GENERAL PUBLIC LICENSE\n'
-                                              'Version 3, 29 June 2007\n\n'
-                                              'Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>\n'
-                                              'Everyone is permitted to copy and distribute verbatim copies of this license document, but changing it is not allowed.\n\n'
-                                              'This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.\n\n'
-                                              'This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.\n\n'
-                                              'You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.'),
-                                        ),
-                                      ),
-                                      actions: <Widget>[
-                                        TextButton(
-                                          child: Text('Close'),
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                  leading: const Icon(Icons.info),
-                  title: const Text('About'),
-                ),
-
-                ListTile(
-                  onTap: () {
-                    _advancedDrawerController.hideDrawer();
-                    showDialog(
-                      context: context,
-                      builder: (context) => const AlarTeamContact(),
-                    );
-                  },
-                  leading: const Icon(Icons.groups_rounded),
-                  title: const Text('Alar Team'),
-                ),
 
                 // Add padding at the bottom for better spacing
                 const SizedBox(height: 24),
