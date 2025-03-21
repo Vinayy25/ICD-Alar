@@ -361,7 +361,10 @@ class _AboutScreenState extends State<AboutScreen> {
                             'Website',
                             delay: 1700.ms,
                             onTap: () {
-                              // Launch website
+                              //url is www.alarinnovations.com
+
+                              launchUrl(
+                                  Uri.parse('https://www.alarinnovations.com'));
                             },
                           ),
                           _buildSocialButton(
@@ -371,6 +374,9 @@ class _AboutScreenState extends State<AboutScreen> {
                             delay: 1800.ms,
                             onTap: () {
                               // Launch email
+
+                              launchUrl(Uri.parse(
+                                  'mailto:innovations.alar@gmail.com'));
                             },
                           ),
                           _buildSocialButton(
@@ -379,7 +385,13 @@ class _AboutScreenState extends State<AboutScreen> {
                             'Privacy',
                             delay: 1900.ms,
                             onTap: () {
-                              // Show privacy policy
+                              // show coming soon
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Coming Soon!'),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
                             },
                           ),
                         ],
